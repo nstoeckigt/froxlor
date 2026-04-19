@@ -99,7 +99,7 @@ if ($userinfo['change_serversettings'] == '1') {
 	}
 
 	if ($distribution != "" && !empty(Request::post('finish'))) {
-		$valid_keys = ['http', 'dns', 'smtp', 'mail', 'antispam', 'ftp', 'system', 'distro'];
+		$valid_keys = ['http', 'dns', 'smtp', 'mail', 'antispam', 'ftp', 'system', 'distro', 'panel'];
 		unset($_POST['finish']);
 		unset($_POST['csrf_token']);
 		$params = Request::postAll();
