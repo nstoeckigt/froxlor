@@ -29,6 +29,20 @@ return [
 			'title' => lng('admin.panelsettings'),
 			'icon' => 'fa-solid fa-chalkboard-user',
 			'fields' => [
+				'panel_webserver' => [
+					'label' => lng('serversettings.panel_webserver'),
+					'settinggroup' => 'system',
+					'varname' => 'panel_webserver',
+					'type' => 'select',
+					'default' => 'nginx',
+					'select_var' => [
+						'nginx' => 'Nginx',
+						'apache2' => 'Apache 2'
+					],
+					'save_method' => 'storeSettingField',
+					'advanced_mode' => true,
+					'requires_reconf' => ['panel']
+				],
 				'panel_standardlanguage' => [
 					'label' => [
 						'title' => lng('login.language'),
