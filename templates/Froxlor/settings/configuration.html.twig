@@ -71,17 +71,24 @@
 									{% else %}
 										<div class="form-check">
 											{% set recommended = false %}
-											{% if
-												(dtype == 'apache22' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '0') or
-												(dtype == 'apache24' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '1') or
-												(dtype == 'nginx' and get_setting('system.webserver') == 'nginx') or
-												(dtype == 'bind' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'Bind') or
-												(dtype == 'powerdns' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'PowerDNS') or
-												(dtype == 'proftpd' and get_setting('system.ftpserver') == 'proftpd') or
-												(dtype == 'pureftpd' and get_setting('system.ftpserver') == 'pureftpd') or
-												(dtype == 'rspamd' and get_setting('antispam.activated') == '1')
-											%}
-												{% set recommended = true %}
+											{% if stype == 'panel' %}
+												{% if (dtype == 'nginx' and get_panel_webserver() == 'nginx') or (dtype == 'apache' and get_panel_webserver() == 'apache') %}
+													{% set recommended = true %}
+												{% endif %}
+											{% elseif stype == 'http' %}
+												{% if (dtype == 'apache22' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '0') or (dtype == 'apache24' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '1') or (dtype == 'nginx' and get_setting('system.webserver') == 'nginx') %}
+													{% set recommended = true %}
+												{% endif %}
+											{% else %}
+												{% if
+													(dtype == 'bind' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'Bind') or
+													(dtype == 'powerdns' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'PowerDNS') or
+													(dtype == 'proftpd' and get_setting('system.ftpserver') == 'proftpd') or
+													(dtype == 'pureftpd' and get_setting('system.ftpserver') == 'pureftpd') or
+													(dtype == 'rspamd' and get_setting('antispam.activated') == '1')
+												%}
+													{% set recommended = true %}
+												{% endif %}
 											{% endif %}
 											<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}">
 											<label class="form-check-label" for="{{ dtype }}">

@@ -5012,6 +5012,13 @@ aliases:     files
 			</general>
 			<daemon name="nginx" title="nginx" default="true">
 				<install><![CDATA[apt-get install nginx]]></install>
+				<file name="/etc/nginx/acme.conf" backup="true">
+					<visibility mode="true">{{settings.system.leenabled}}</visibility>
+					<content><![CDATA[location ^~ /.well-known/acme-challenge/ {
+	alias {{settings.system.documentroot}}/.well-known/acme-challenge/;
+}]]>
+				</content>
+				</file>
 				<commands index="2">
 					<command><![CDATA[systemctl enable nginx]]></command>
 					<command><![CDATA[systemctl restart nginx]]></command>

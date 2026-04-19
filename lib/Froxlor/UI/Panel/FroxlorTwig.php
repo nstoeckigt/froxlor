@@ -30,6 +30,7 @@ namespace Froxlor\UI\Panel;
 use Froxlor\Idna\IdnaWrapper;
 use Froxlor\Settings;
 use Froxlor\System\Markdown;
+use Froxlor\System\ServicePorts;
 use Parsedown;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
@@ -96,6 +97,14 @@ class FroxlorTwig extends AbstractExtension
 			new TwigFunction('vite', [
 				$this,
 				'getVite'
+			]),
+			new TwigFunction('get_panel_webserver', [
+				$this,
+				'getPanelWebserver'
+			]),
+			new TwigFunction('get_customer_webserver', [
+				$this,
+				'getCustomerWebserver'
 			])
 		];
 	}
@@ -175,5 +184,15 @@ class FroxlorTwig extends AbstractExtension
 	public function getVite($basehref = '', $vite = [], $defaults = [])
 	{
 		return vite($basehref, $vite ?? $defaults);
+	}
+	
+	public function getPanelWebserver(): string
+	{
+		return ServicePorts::getPanelWebserver();
+	}
+	
+	public function getCustomerWebserver(): string
+	{
+		return ServicePorts::getCustomerWebserver();
 	}
 }

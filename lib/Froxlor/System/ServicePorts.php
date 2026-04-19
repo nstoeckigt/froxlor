@@ -122,4 +122,32 @@ class ServicePorts
         $customerPorts = self::getCustomerPorts();
         return isset($customerPorts[$port]);
     }
+    
+    /**
+     * Get the primary webserver for panel
+     * 
+     * @return string The webserver (nginx/apache) or empty string
+     */
+    public static function getPanelWebserver(): string
+    {
+        $ports = self::getPanelPorts();
+        if (!empty($ports)) {
+            return reset($ports);
+        }
+        return '';
+    }
+    
+    /**
+     * Get the primary webserver for customer web
+     * 
+     * @return string The webserver (nginx/apache) or empty string
+     */
+    public static function getCustomerWebserver(): string
+    {
+        $ports = self::getCustomerPorts();
+        if (!empty($ports)) {
+            return reset($ports);
+        }
+        return \Froxlor\Settings::Get('system.webserver') ?? '';
+    }
 }
