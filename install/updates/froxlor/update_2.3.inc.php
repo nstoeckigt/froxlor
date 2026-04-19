@@ -212,3 +212,12 @@ if (Froxlor::isFroxlorVersion('2.3.5')) {
 	Update::showUpdateStep("Updating from 2.3.5 to 2.3.6", false);
 	Froxlor::updateToVersion('2.3.6');
 }
+
+if (Froxlor::isFroxlorVersion('2.3.6')) {
+	Update::showUpdateStep("Adding Service Separation settings");
+	Settings::AddNew("system.enable_service_ports", "0");
+	Settings::AddNew("system.panel_service_ports", "nginx:8080;nginx:8043");
+	Settings::AddNew("system.customer_service_ports", "apache:80;apache:443");
+	Update::lastStepStatus(0);
+	Froxlor::updateToVersion('2.3.7-dev');
+}

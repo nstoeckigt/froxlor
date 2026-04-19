@@ -37,6 +37,7 @@ use Froxlor\Http\Statistics;
 use Froxlor\PhpHelper;
 use Froxlor\Settings;
 use Froxlor\System\Cronjob;
+use Froxlor\System\ServicePorts;
 use Froxlor\System\Crypt;
 use Froxlor\Validate\Validate;
 use PDO;
@@ -72,6 +73,19 @@ class Apache extends HttpConfigBase
 				$ipport = '[' . $row_ipsandports['ip'] . ']:' . $row_ipsandports['port'];
 			} else {
 				$ipport = $row_ipsandports['ip'] . ':' . $row_ipsandports['port'];
+			}
+
+			// Service port separation - skip ports not handled by apache
+			if (ServicePorts::isEnabled()) {
+				$panelPorts = ServicePorts::getPanelPorts();
+				$customerPorts = ServicePorts::getCustomerPorts();
+				$allApachePorts = array_merge($panelPorts, $customerPorts);
+				$port = (int) $row_ipsandports['port'];
+				// Only generate configs for ports that use apache (either panel or customer)
+				if (!isset($allApachePorts[$port]) || $allApachePorts[$port] !== 'apache') {
+					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createIpPort: skipping port ' . $port . ' (not in apache service ports)');
+					continue;
+				}
 			}
 
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'apache::createIpPort: creating ip/port settings for  ' . $ipport);

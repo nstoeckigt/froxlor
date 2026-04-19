@@ -453,6 +453,36 @@ return [
 						'apache2',
 					],
 				],
+				'system_enable_service_ports' => [
+					'label' => lng('serversettings.service_ports_enable'),
+					'settinggroup' => 'system',
+					'varname' => 'enable_service_ports',
+					'type' => 'checkbox',
+					'default' => false,
+					'save_method' => 'storeSettingField',
+					'description' => lng('serversettings.service_ports_enable_desc'),
+					'advanced_mode' => true
+				],
+				'system_panel_service_ports' => [
+					'label' => lng('serversettings.service_ports_panel'),
+					'settinggroup' => 'system',
+					'varname' => 'panel_service_ports',
+					'type' => 'text',
+					'default' => 'nginx:8080;nginx:8043',
+					'save_method' => 'storeSettingField',
+					'description' => lng('serversettings.service_ports_panel_desc'),
+					'advanced_mode' => true
+				],
+				'system_customer_service_ports' => [
+					'label' => lng('serversettings.service_ports_customer'),
+					'settinggroup' => 'system',
+					'varname' => 'customer_service_ports',
+					'type' => 'text',
+					'default' => 'apache:80;apache:443',
+					'save_method' => 'storeSettingField',
+					'description' => lng('serversettings.service_ports_customer_desc'),
+					'advanced_mode' => true
+				],
 			]
 		]
 	]

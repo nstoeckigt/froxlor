@@ -37,6 +37,7 @@ use Froxlor\Http\Directory;
 use Froxlor\Http\Statistics;
 use Froxlor\Settings;
 use Froxlor\System\Cronjob;
+use Froxlor\System\ServicePorts;
 use Froxlor\Validate\Validate;
 use Froxlor\System\Crypt;
 use PDO;
@@ -98,6 +99,18 @@ class Nginx extends HttpConfigBase
 				$ip = $row_ipsandports['ip'];
 			}
 			$port = $row_ipsandports['port'];
+
+			// Service port separation - skip ports not handled by nginx
+			if (ServicePorts::isEnabled()) {
+				$panelPorts = ServicePorts::getPanelPorts();
+				$customerPorts = ServicePorts::getCustomerPorts();
+				$allNginxPorts = array_merge($panelPorts, $customerPorts);
+				// Only generate configs for ports that use nginx (either panel or customer)
+				if (!isset($allNginxPorts[$port]) || $allNginxPorts[$port] !== 'nginx') {
+					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'nginx::createIpPort: skipping port ' . $port . ' (not in nginx service ports)');
+					continue;
+				}
+			}
 
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'nginx::createIpPort: creating ip/port settings for  ' . $ip . ":" . $port);
 			$vhost_filename = FileDir::makeCorrectFile(Settings::Get('system.apacheconf_vhost') . '/10_froxlor_ipandport_' . trim(str_replace(':', '.', $row_ipsandports['ip']), '.') . '.' . $row_ipsandports['port'] . '.conf');
