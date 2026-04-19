@@ -76,7 +76,7 @@
 													{% set recommended = true %}
 												{% endif %}
 											{% elseif stype == 'http' %}
-												{% if (dtype == 'apache22' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '0') or (dtype == 'apache24' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '1') or (dtype == 'nginx' and get_setting('system.webserver') == 'nginx') %}
+												{% if (dtype == 'apache22' and get_customer_webserver() == 'apache' and get_setting('system.apache24') == '0') or (dtype == 'apache24' and get_customer_webserver() == 'apache' and get_setting('system.apache24') == '1') or (dtype == 'nginx' and get_customer_webserver() == 'nginx') %}
 													{% set recommended = true %}
 												{% endif %}
 											{% else %}
