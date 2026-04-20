@@ -30,7 +30,7 @@ return [
 			'icon' => 'fa-solid fa-chalkboard-user',
 			'fields' => [
 				'panel_webserver' => [
-					'label' => lng('serversettings.panel_webserver'),
+					'label' => 'Panel Webserver',
 					'settinggroup' => 'system',
 					'varname' => 'panel_webserver',
 					'type' => 'select',
@@ -40,8 +40,23 @@ return [
 						'apache2' => 'Apache 2'
 					],
 					'save_method' => 'storeSettingField',
-					'advanced_mode' => true,
 					'requires_reconf' => ['panel']
+				],
+				'panel_http_port' => [
+					'label' => 'Panel HTTP Port',
+					'settinggroup' => 'system',
+					'varname' => 'panel_http_port',
+					'type' => 'number',
+					'default' => 8080,
+					'save_method' => 'storeSettingField'
+				],
+				'panel_https_port' => [
+					'label' => 'Panel HTTPS Port',
+					'settinggroup' => 'system',
+					'varname' => 'panel_https_port',
+					'type' => 'number',
+					'default' => 8043,
+					'save_method' => 'storeSettingField'
 				],
 				'panel_standardlanguage' => [
 					'label' => [

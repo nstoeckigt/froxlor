@@ -31,10 +31,10 @@ return [
 			'title' => lng('admin.webserversettings'),
 			'icon' => 'fa-solid fa-server',
 			'fields' => [
-				'system_webserver' => [
-					'label' => lng('admin.webserver'),
+				'customer_webserver' => [
+					'label' => 'Customer Webserver',
 					'settinggroup' => 'system',
-					'varname' => 'webserver',
+					'varname' => 'customer_webserver',
 					'type' => 'select',
 					'default' => 'apache2',
 					'select_var' => [
@@ -42,11 +42,32 @@ return [
 						'nginx' => 'Nginx'
 					],
 					'save_method' => 'storeSettingField',
-					'plausibility_check_method' => [
-						'\\Froxlor\\Validate\\Check',
-						'checkPhpInterfaceSetting'
-					],
 					'requires_reconf' => ['http']
+				],
+				'customer_http_port' => [
+					'label' => 'Customer HTTP Port',
+					'settinggroup' => 'system',
+					'varname' => 'customer_http_port',
+					'type' => 'number',
+					'default' => 80,
+					'save_method' => 'storeSettingField'
+				],
+				'customer_https_port' => [
+					'label' => 'Customer HTTPS Port',
+					'settinggroup' => 'system',
+					'varname' => 'customer_https_port',
+					'type' => 'number',
+					'default' => 443,
+					'save_method' => 'storeSettingField'
+				],
+				'customer_http_to_https_redirect' => [
+					'label' => 'HTTP to HTTPS Redirect',
+					'settinggroup' => 'system',
+					'varname' => 'customer_http_to_https_redirect',
+					'type' => 'checkbox',
+					'default' => false,
+					'save_method' => 'storeSettingField',
+					'description' => 'Automatically redirect HTTP requests to HTTPS'
 				],
 				'system_apache24' => [
 					'label' => lng('serversettings.apache_24'),

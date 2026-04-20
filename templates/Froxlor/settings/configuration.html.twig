@@ -77,10 +77,18 @@
 													{% set recommended = true %}
 												{% endif %}
 											{% elseif stype == 'http' %}
-												{# Use customer_service_ports if enabled, otherwise fall back to system.webserver #}
-												{% set customer_web = get_setting('system.customer_service_ports')|default('apache:80')|split(';')[0]|split(':')[0] %}
-												{% if (dtype == 'apache' and customer_web == 'apache') or (dtype == 'nginx' and customer_web == 'nginx') %}
-													{% set recommended = true %}
+												{# When service separation is enabled, customers use apache #}
+												{% if get_setting('system.enable_service_ports') == '1' %}
+													{% if dtype == 'apache' %}
+														{% set recommended = true %}
+													{% endif %}
+												{% else %}
+													{# No service separation - use system.webserver #}
+													{% if dtype == 'nginx' and get_setting('system.webserver') == 'nginx' %}
+														{% set recommended = true %}
+													{% elseif dtype == 'apache' and get_setting('system.webserver') == 'apache2' %}
+														{% set recommended = true %}
+													{% endif %}
 												{% endif %}
 											{% else %}
 												{% if
@@ -93,7 +101,7 @@
 													{% set recommended = true %}
 												{% endif %}
 											{% endif %}
-											<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}">
+											<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}" {% if recommended %}checked{% endif %}>
 											<label class="form-check-label" for="{{ dtype }}">
 												{% if recommended %}
 													<strong>{{ daemon.title }}<span class="text-danger">*</span>
