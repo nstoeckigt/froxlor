@@ -101,10 +101,6 @@ class FroxlorTwig extends AbstractExtension
 			new TwigFunction('get_panel_webserver', [
 				$this,
 				'getPanelWebserver'
-			]),
-			new TwigFunction('get_customer_webserver', [
-				$this,
-				'getCustomerWebserver'
 			])
 		];
 	}
@@ -185,14 +181,9 @@ class FroxlorTwig extends AbstractExtension
 	{
 		return vite($basehref, $vite ?? $defaults);
 	}
-	
+
 	public function getPanelWebserver(): string
 	{
 		return ServicePorts::getPanelWebserver();
-	}
-	
-	public function getCustomerWebserver(): string
-	{
-		return ServicePorts::getCustomerWebserver();
 	}
 }

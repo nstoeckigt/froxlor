@@ -31,10 +31,10 @@ return [
 			'title' => lng('admin.webserversettings'),
 			'icon' => 'fa-solid fa-server',
 			'fields' => [
-				'customer_webserver' => [
-					'label' => 'Customer Webserver',
+				'system_webserver' => [
+					'label' => lng('admin.webserver'),
 					'settinggroup' => 'system',
-					'varname' => 'customer_webserver',
+					'varname' => 'webserver',
 					'type' => 'select',
 					'default' => 'apache2',
 					'select_var' => [
@@ -42,32 +42,11 @@ return [
 						'nginx' => 'Nginx'
 					],
 					'save_method' => 'storeSettingField',
+					'plausibility_check_method' => [
+						'\\Froxlor\\Validate\\Check',
+						'checkPhpInterfaceSetting'
+					],
 					'requires_reconf' => ['http']
-				],
-				'customer_http_port' => [
-					'label' => 'Customer HTTP Port',
-					'settinggroup' => 'system',
-					'varname' => 'customer_http_port',
-					'type' => 'number',
-					'default' => 80,
-					'save_method' => 'storeSettingField'
-				],
-				'customer_https_port' => [
-					'label' => 'Customer HTTPS Port',
-					'settinggroup' => 'system',
-					'varname' => 'customer_https_port',
-					'type' => 'number',
-					'default' => 443,
-					'save_method' => 'storeSettingField'
-				],
-				'customer_http_to_https_redirect' => [
-					'label' => 'HTTP to HTTPS Redirect',
-					'settinggroup' => 'system',
-					'varname' => 'customer_http_to_https_redirect',
-					'type' => 'checkbox',
-					'default' => false,
-					'save_method' => 'storeSettingField',
-					'description' => 'Automatically redirect HTTP requests to HTTPS'
 				],
 				'system_apache24' => [
 					'label' => lng('serversettings.apache_24'),
@@ -482,26 +461,6 @@ return [
 					'default' => false,
 					'save_method' => 'storeSettingField',
 					'description' => lng('serversettings.service_ports_enable_desc'),
-					'advanced_mode' => true
-				],
-				'system_panel_service_ports' => [
-					'label' => lng('serversettings.service_ports_panel'),
-					'settinggroup' => 'system',
-					'varname' => 'panel_service_ports',
-					'type' => 'text',
-					'default' => 'nginx:8080;nginx:8043',
-					'save_method' => 'storeSettingField',
-					'description' => lng('serversettings.service_ports_panel_desc'),
-					'advanced_mode' => true
-				],
-				'system_customer_service_ports' => [
-					'label' => lng('serversettings.service_ports_customer'),
-					'settinggroup' => 'system',
-					'varname' => 'customer_service_ports',
-					'type' => 'text',
-					'default' => 'apache:80;apache:443',
-					'save_method' => 'storeSettingField',
-					'description' => lng('serversettings.service_ports_customer_desc'),
 					'advanced_mode' => true
 				],
 			]

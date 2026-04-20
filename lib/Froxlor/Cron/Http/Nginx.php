@@ -76,14 +76,7 @@ class Nginx extends HttpConfigBase
 
 	public function createVirtualHosts()
 	{
-		// Service separation: when enabled, customer domains are handled by Apache
-		if (ServicePorts::isEnabled()) {
-			$customerPorts = ServicePorts::getCustomerPorts();
-			if (!empty($customerPorts) && array_values($customerPorts)[0] != 'nginx') {
-				return;
-			}
-		}
-		$this->createNginxHosts();
+		return;
 	}
 
 	public function createFileDirOptions()
@@ -108,15 +101,9 @@ class Nginx extends HttpConfigBase
 			$port = $row_ipsandports['port'];
 
 			// Service port separation - skip ports not handled by nginx
-			if (ServicePorts::isEnabled()) {
-				$panelPorts = ServicePorts::getPanelPorts();
-				$customerPorts = ServicePorts::getCustomerPorts();
-				$allNginxPorts = array_merge($panelPorts, $customerPorts);
-				// Only generate configs for ports that use nginx (either panel or customer)
-				if (!isset($allNginxPorts[$port]) || $allNginxPorts[$port] !== 'nginx') {
-					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'nginx::createIpPort: skipping port ' . $port . ' (not in nginx service ports)');
-					continue;
-				}
+			if (ServicePorts::isEnabled() && !ServicePorts::isPortForWebserver((int) $port, 'nginx')) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'nginx::createIpPort: skipping port ' . $port . ' (not assigned to nginx)');
+				continue;
 			}
 
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'nginx::createIpPort: creating ip/port settings for  ' . $ip . ":" . $port);
@@ -531,6 +518,14 @@ class Nginx extends HttpConfigBase
 
 		$query = "SELECT * FROM `" . TABLE_PANEL_IPSANDPORTS . "` `i`, `" . TABLE_DOMAINTOIP . "` `dip`
 			WHERE dip.id_domain = :domainid AND i.id = dip.id_ipandports ";
+
+		// Service separation: exclude panel ports when the panel is served by a different webserver
+		if (ServicePorts::isEnabled() && ServicePorts::getPanelWebserver() !== ServicePorts::getCustomerWebserver()) {
+			$panelPorts = array_keys(ServicePorts::getPanelPorts());
+			if (!empty($panelPorts)) {
+				$query .= " AND i.port NOT IN (" . implode(',', array_map('intval', $panelPorts)) . ")";
+			}
+		}
 
 		if ($ssl_vhost === true && ($domain['ssl'] == '1' || $domain['ssl_redirect'] == '1')) {
 			// by ordering by cert-file the row with filled out SSL-Fields will be shown last,

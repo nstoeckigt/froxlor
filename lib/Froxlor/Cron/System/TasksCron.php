@@ -157,22 +157,20 @@ class TasksCron extends FroxlorCron
 		Database::query("UPDATE `" . TABLE_PANEL_SETTINGS . "` SET `value` = UNIX_TIMESTAMP() WHERE `settinggroup` = 'system' AND `varname` = 'last_tasks_run';");
 	}
 
-private static function rebuildWebserverConfigs()
+	private static function rebuildWebserverConfigs()
 	{
-		// Check if service separation is enabled
-		$serviceSeparation = \Froxlor\System\ServicePorts::isEnabled();
+		$customerWebserver = Settings::Get('system.webserver');
+		$webservers = [$customerWebserver];
 
-		if ($serviceSeparation) {
-			// Run both webserver configs separately
-			self::rebuildWebserverConfig('nginx');
-			self::rebuildWebserverConfig('apache');
-		} else {
-			// Single webserver mode (legacy)
-			if (Settings::Get('system.webserver') == "apache2") {
-				self::rebuildWebserverConfig('apache');
-			} elseif (Settings::Get('system.webserver') == "nginx") {
-				self::rebuildWebserverConfig('nginx');
+		if (\Froxlor\System\ServicePorts::isEnabled()) {
+			$panelWebserver = \Froxlor\System\ServicePorts::getPanelWebserver();
+			if ($panelWebserver !== '' && $panelWebserver !== $customerWebserver) {
+				$webservers[] = $panelWebserver;
 			}
+		}
+
+		foreach (array_unique($webservers) as $webserver) {
+			self::rebuildWebserverConfig($webserver);
 		}
 
 		// if we use php-fpm and have a local user for froxlor, we need to
@@ -195,13 +193,13 @@ private static function rebuildWebserverConfigs()
 
 	private static function rebuildWebserverConfig(string $webserver_type): void
 	{
-		if ($webserver_type == "apache") {
-			$websrv = '\\Froxlor\Cron\Http\Apache';
+		if ($webserver_type == "apache2") {
+			$websrv = '\\Froxlor\\Cron\\Http\\Apache';
 			if (Settings::Get('system.mod_fcgid') == 1 || Settings::Get('phpfpm.enabled') == 1) {
 				$websrv .= 'Fcgi';
 			}
 		} elseif ($webserver_type == "nginx") {
-			$websrv = '\\Froxlor\Cron\Http\Nginx';
+			$websrv = '\\Froxlor\\Cron\\Http\\Nginx';
 			if (Settings::Get('phpfpm.enabled') == 1) {
 				$websrv .= 'Fcgi';
 			}

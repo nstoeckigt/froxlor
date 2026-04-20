@@ -1,9 +1,7 @@
 <?php
 
 /**
- * Helper class for service port separation
- * 
- * This file is part of the froxlor project.
+ * This file is part of the Froxlor project.
  *
  * @copyright  the froxlor team
  * @license    GPLv2
@@ -11,191 +9,128 @@
 
 namespace Froxlor\System;
 
+use Froxlor\Settings;
+
 /**
- * ServicePorts helper class
- * 
- * Parses the service ports configuration and provides methods
- * to determine which IPs should be used for panel vs customer.
+ * Helper for the service-separation feature: which webserver
+ * handles which port when the panel and customer webs are split.
  */
 class ServicePorts
 {
-    /**
-     * Parse service ports setting string
-     * 
-     * Format: service:port;service:port (e.g., nginx:8080;nginx:8043)
-     * 
-     * @param string $setting The setting value from panel_settings
-     * @return array Array of port => service mappings
-     */
-    public static function parseServicePorts(string $setting): array
-    {
-        $result = [];
-        
-        if (empty($setting)) {
-            return $result;
-        }
-        
-        $parts = explode(';', $setting);
-        foreach ($parts as $part) {
-            $part = trim($part);
-            if (empty($part)) {
-                continue;
-            }
-            
-            $servicePort = explode(':', $part);
-            if (count($servicePort) === 2) {
-                $service = strtolower(trim($servicePort[0]));
-                $port = (int) trim($servicePort[1]);
-                if ($port > 0) {
-                    $result[$port] = $service;
-                }
-            }
-        }
-        
-        return $result;
-    }
-    
-    /**
-     * Check if a port should be handled by a specific service
-     * 
-     * @param int $port The port to check
-     * @param string $servicePortsSetting The setting from panel_settings
-     * @param string $service The service to check for (e.g., 'nginx', 'apache')
-     * @return bool True if the port should be handled by this service
-     */
-    public static function isPortForService(int $port, string $servicePortsSetting, string $service): bool
-    {
-        $ports = self::parseServicePorts($servicePortsSetting);
-        return isset($ports[$port]) && strtolower($ports[$port]) === strtolower($service);
-    }
-    
-    /**
-     * Check if service port separation is enabled
-     * 
-     * @return bool True if enabled
-     */
-    public static function isEnabled(): bool
-    {
-        return \Froxlor\Settings::Get('system.enable_service_ports') == '1';
-    }
-    
-/**
- * Get panel service ports
- * 
- * @return array Array of port => service
- */
-public static function getPanelPorts(): array
-{
-    // New individual settings take priority
-    $http_port = (int) \Froxlor\Settings::Get('system.panel_http_port') ?? 0;
-    $https_port = (int) \Froxlor\Settings::Get('system.panel_https_port') ?? 0;
-    $webserver = \Froxlor\Settings::Get('system.panel_webserver') ?? 'nginx';
-    
-    $ports = [];
-    if ($http_port > 0) {
-        $ports[$http_port] = $webserver;
-    }
-    if ($https_port > 0) {
-        $ports[$https_port] = $webserver;
-    }
-    
-    // If new settings exist, use them
-    if (!empty($ports)) {
-        return $ports;
-    }
-    
-    // Fallback to old combined setting
-    return self::parseServicePorts(\Froxlor\Settings::Get('system.panel_service_ports') ?? '');
-}
+	/**
+	 * Parse a "service:port;service:port" list (e.g. "nginx:8080;apache2:80").
+	 * Kept as a utility for validation and import/export of settings.
+	 *
+	 * @return array<int,string> port => service (lowercased)
+	 */
+	public static function parseServicePorts(string $setting): array
+	{
+		$result = [];
+		if ($setting === '') {
+			return $result;
+		}
+		foreach (explode(';', $setting) as $part) {
+			$part = trim($part);
+			if ($part === '') {
+				continue;
+			}
+			$pair = explode(':', $part);
+			if (count($pair) !== 2) {
+				continue;
+			}
+			$service = strtolower(trim($pair[0]));
+			$port = (int) trim($pair[1]);
+			if ($port > 0 && $service !== '') {
+				$result[$port] = $service;
+			}
+		}
+		return $result;
+	}
 
-/**
- * Get customer service ports
- * 
- * @return array Array of port => service
- */
-public static function getCustomerPorts(): array
-{
-    // New individual settings take priority
-    $http_port = (int) \Froxlor\Settings::Get('system.customer_http_port') ?? 0;
-    $https_port = (int) \Froxlor\Settings::Get('system.customer_https_port') ?? 0;
-    $webserver = \Froxlor\Settings::Get('system.customer_webserver') ?? 'apache2';
-    
-    $ports = [];
-    if ($http_port > 0) {
-        $ports[$http_port] = $webserver;
-    }
-    if ($https_port > 0) {
-        $ports[$https_port] = $webserver;
-    }
-    
-    // If new settings exist, use them
-    if (!empty($ports)) {
-        return $ports;
-    }
-    
-    // Fallback to old combined setting
-    return self::parseServicePorts(\Froxlor\Settings::Get('system.customer_service_ports') ?? '');
-}
-    
-    /**
-     * Check if a port is a panel port
-     * 
-     * @param int $port
-     * @return bool
-     */
-    public static function isPanelPort(int $port): bool
-    {
-        $panelPorts = self::getPanelPorts();
-        return isset($panelPorts[$port]);
-    }
-    
-    /**
-     * Check if a port is a customer port
-     * 
-     * @param int $port
-     * @return bool
-     */
-    public static function isCustomerPort(int $port): bool
-    {
-        $customerPorts = self::getCustomerPorts();
-        return isset($customerPorts[$port]);
-    }
-    
-    /**
-     * Get the primary webserver for panel
-     * 
-     * @return string The webserver (nginx/apache) or empty string
-     */
-    public static function getPanelWebserver(): string
-    {
-        $ports = self::getPanelPorts();
-        if (!empty($ports)) {
-            return reset($ports);
-        }
-        return '';
-    }
-    
-    /**
-     * Get the primary webserver for customer web
-     * 
-     * @return string The webserver (nginx/apache) or empty string
-     */
-    public static function getCustomerWebserver(): string
-    {
-        $ports = self::getCustomerPorts();
-        if (!empty($ports)) {
-            return reset($ports);
-        }
-        return \Froxlor\Settings::Get('system.webserver') ?? '';
-    }
-    
-    /**
-     * Check if HTTP to HTTPS redirect is enabled for customers
-     * 
-     * @return bool
-     */
-    public static function customerHttpToHttpsRedirect(): bool
-    {
-        return \Froxlor\Settings::Get('system.customer_http_to_https_redirect') == '1';
-    }
+	/**
+	 * Check whether a given port in a "service:port;..." list is assigned to $service.
+	 */
+	public static function isPortForService(int $port, string $servicePortsSetting, string $service): bool
+	{
+		$ports = self::parseServicePorts($servicePortsSetting);
+		return isset($ports[$port]) && $ports[$port] === strtolower($service);
+	}
+
+	/**
+	 * Whether the service-separation feature is turned on.
+	 */
+	public static function isEnabled(): bool
+	{
+		return Settings::Get('system.enable_service_ports') == '1';
+	}
+
+	/**
+	 * The webserver configured for the Froxlor panel.
+	 * Falls back to the global webserver when the panel-specific setting is empty.
+	 */
+	public static function getPanelWebserver(): string
+	{
+		$ws = Settings::Get('system.panel_webserver');
+		if (!empty($ws)) {
+			return (string) $ws;
+		}
+		return self::getCustomerWebserver();
+	}
+
+	/**
+	 * The webserver handling customer domains. Same as the legacy `system.webserver` setting.
+	 */
+	public static function getCustomerWebserver(): string
+	{
+		return (string) (Settings::Get('system.webserver') ?? '');
+	}
+
+	/**
+	 * The ports reserved for the Froxlor panel.
+	 *
+	 * @return array<int,string> port => service
+	 */
+	public static function getPanelPorts(): array
+	{
+		$ports = [];
+		$http = (int) (Settings::Get('system.panel_http_port') ?? 0);
+		$https = (int) (Settings::Get('system.panel_https_port') ?? 0);
+		$ws = self::getPanelWebserver();
+		if ($http > 0) {
+			$ports[$http] = $ws;
+		}
+		if ($https > 0) {
+			$ports[$https] = $ws;
+		}
+		return $ports;
+	}
+
+	/**
+	 * Whether a port is a panel port (managed by the panel webserver).
+	 */
+	public static function isPanelPort(int $port): bool
+	{
+		return isset(self::getPanelPorts()[$port]);
+	}
+
+	/**
+	 * Decide whether the given port should be served by the given webserver
+	 * under the current configuration. When service separation is disabled,
+	 * every port goes to `system.webserver`; when enabled, panel ports go to
+	 * the panel webserver and all remaining ports to the customer webserver.
+	 *
+	 * @param string $webserver "nginx" or "apache2"
+	 */
+	public static function isPortForWebserver(int $port, string $webserver): bool
+	{
+		$webserver = strtolower($webserver);
+		if (!self::isEnabled()) {
+			return self::getCustomerWebserver() === $webserver;
+		}
+		$panelPorts = self::getPanelPorts();
+		if (isset($panelPorts[$port])) {
+			return $panelPorts[$port] === $webserver;
+		}
+		return self::getCustomerWebserver() === $webserver;
+	}
 }

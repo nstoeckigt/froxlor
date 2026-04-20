@@ -76,16 +76,9 @@ class Apache extends HttpConfigBase
 			}
 
 			// Service port separation - skip ports not handled by apache
-			if (ServicePorts::isEnabled()) {
-				$panelPorts = ServicePorts::getPanelPorts();
-				$customerPorts = ServicePorts::getCustomerPorts();
-				$allApachePorts = array_merge($panelPorts, $customerPorts);
-				$port = (int) $row_ipsandports['port'];
-				// Only generate configs for ports that use apache (either panel or customer)
-				if (!isset($allApachePorts[$port]) || !in_array($allApachePorts[$port], ['apache', 'apache2'])) {
-					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createIpPort: skipping port ' . $port . ' (not in apache service ports)');
-					continue;
-				}
+			if (ServicePorts::isEnabled() && !ServicePorts::isPortForWebserver((int) $row_ipsandports['port'], 'apache2')) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createIpPort: skipping port ' . $row_ipsandports['port'] . ' (not assigned to apache)');
+				continue;
 			}
 
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'apache::createIpPort: creating ip/port settings for  ' . $ipport);
@@ -637,12 +630,11 @@ class Apache extends HttpConfigBase
 		$query = "SELECT * FROM `" . TABLE_PANEL_IPSANDPORTS . "` `i`, `" . TABLE_DOMAINTOIP . "` `dip`
 			WHERE dip.id_domain = :domainid AND i.id = dip.id_ipandports ";
 
-		// Service separation: only use customer ports for Apache
-		if (ServicePorts::isEnabled()) {
-			$customerPorts = ServicePorts::getCustomerPorts();
-			if (!empty($customerPorts)) {
-				$portList = implode(',', array_keys($customerPorts));
-				$query .= " AND i.port IN (" . $portList . ")";
+		// Service separation: exclude panel ports when the panel is served by a different webserver
+		if (ServicePorts::isEnabled() && ServicePorts::getPanelWebserver() !== ServicePorts::getCustomerWebserver()) {
+			$panelPorts = array_keys(ServicePorts::getPanelPorts());
+			if (!empty($panelPorts)) {
+				$query .= " AND i.port NOT IN (" . implode(',', array_map('intval', $panelPorts)) . ")";
 			}
 		}
 
