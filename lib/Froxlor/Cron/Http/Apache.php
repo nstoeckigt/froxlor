@@ -82,7 +82,7 @@ class Apache extends HttpConfigBase
 				$allApachePorts = array_merge($panelPorts, $customerPorts);
 				$port = (int) $row_ipsandports['port'];
 				// Only generate configs for ports that use apache (either panel or customer)
-				if (!isset($allApachePorts[$port]) || $allApachePorts[$port] !== 'apache') {
+				if (!isset($allApachePorts[$port]) || !in_array($allApachePorts[$port], ['apache', 'apache2'])) {
 					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createIpPort: skipping port ' . $port . ' (not in apache service ports)');
 					continue;
 				}
@@ -636,6 +636,15 @@ class Apache extends HttpConfigBase
 
 		$query = "SELECT * FROM `" . TABLE_PANEL_IPSANDPORTS . "` `i`, `" . TABLE_DOMAINTOIP . "` `dip`
 			WHERE dip.id_domain = :domainid AND i.id = dip.id_ipandports ";
+
+		// Service separation: only use customer ports for Apache
+		if (ServicePorts::isEnabled()) {
+			$customerPorts = ServicePorts::getCustomerPorts();
+			if (!empty($customerPorts)) {
+				$portList = implode(',', array_keys($customerPorts));
+				$query .= " AND i.port IN (" . $portList . ")";
+			}
+		}
 
 		if ($ssl_vhost === true && ($domain['ssl'] == '1' || $domain['ssl_redirect'] == '1')) {
 			// by ordering by cert-file the row with filled out SSL-Fields will be shown last, thus it is enough to fill out 1 set of SSL-Fields

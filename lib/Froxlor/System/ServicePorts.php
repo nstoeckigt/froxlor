@@ -79,25 +79,63 @@ class ServicePorts
         return \Froxlor\Settings::Get('system.enable_service_ports') == '1';
     }
     
-    /**
-     * Get panel service ports
-     * 
-     * @return array Array of port => service
-     */
-    public static function getPanelPorts(): array
-    {
-        return self::parseServicePorts(\Froxlor\Settings::Get('system.panel_service_ports') ?? '');
+/**
+ * Get panel service ports
+ * 
+ * @return array Array of port => service
+ */
+public static function getPanelPorts(): array
+{
+    // New individual settings take priority
+    $http_port = (int) \Froxlor\Settings::Get('system.panel_http_port') ?? 0;
+    $https_port = (int) \Froxlor\Settings::Get('system.panel_https_port') ?? 0;
+    $webserver = \Froxlor\Settings::Get('system.panel_webserver') ?? 'nginx';
+    
+    $ports = [];
+    if ($http_port > 0) {
+        $ports[$http_port] = $webserver;
+    }
+    if ($https_port > 0) {
+        $ports[$https_port] = $webserver;
     }
     
-    /**
-     * Get customer service ports
-     * 
-     * @return array Array of port => service
-     */
-    public static function getCustomerPorts(): array
-    {
-        return self::parseServicePorts(\Froxlor\Settings::Get('system.customer_service_ports') ?? '');
+    // If new settings exist, use them
+    if (!empty($ports)) {
+        return $ports;
     }
+    
+    // Fallback to old combined setting
+    return self::parseServicePorts(\Froxlor\Settings::Get('system.panel_service_ports') ?? '');
+}
+
+/**
+ * Get customer service ports
+ * 
+ * @return array Array of port => service
+ */
+public static function getCustomerPorts(): array
+{
+    // New individual settings take priority
+    $http_port = (int) \Froxlor\Settings::Get('system.customer_http_port') ?? 0;
+    $https_port = (int) \Froxlor\Settings::Get('system.customer_https_port') ?? 0;
+    $webserver = \Froxlor\Settings::Get('system.customer_webserver') ?? 'apache2';
+    
+    $ports = [];
+    if ($http_port > 0) {
+        $ports[$http_port] = $webserver;
+    }
+    if ($https_port > 0) {
+        $ports[$https_port] = $webserver;
+    }
+    
+    // If new settings exist, use them
+    if (!empty($ports)) {
+        return $ports;
+    }
+    
+    // Fallback to old combined setting
+    return self::parseServicePorts(\Froxlor\Settings::Get('system.customer_service_ports') ?? '');
+}
     
     /**
      * Check if a port is a panel port
@@ -149,5 +187,15 @@ class ServicePorts
             return reset($ports);
         }
         return \Froxlor\Settings::Get('system.webserver') ?? '';
+    }
+    
+    /**
+     * Check if HTTP to HTTPS redirect is enabled for customers
+     * 
+     * @return bool
+     */
+    public static function customerHttpToHttpsRedirect(): bool
+    {
+        return \Froxlor\Settings::Get('system.customer_http_to_https_redirect') == '1';
     }
 }

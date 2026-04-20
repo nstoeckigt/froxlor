@@ -76,7 +76,14 @@ class Nginx extends HttpConfigBase
 
 	public function createVirtualHosts()
 	{
-		return;
+		// Service separation: when enabled, customer domains are handled by Apache
+		if (ServicePorts::isEnabled()) {
+			$customerPorts = ServicePorts::getCustomerPorts();
+			if (!empty($customerPorts) && array_values($customerPorts)[0] != 'nginx') {
+				return;
+			}
+		}
+		$this->createNginxHosts();
 	}
 
 	public function createFileDirOptions()
