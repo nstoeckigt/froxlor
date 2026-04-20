@@ -2009,6 +2009,22 @@ Ach upřímně, váš správce',
 			'title' => 'Použít úpravy pro Apache 2.4',
 			'description' => '<strong class="text-danger">POZOR:</strong> použijte, pouze pokud máte nainstalovanou apache verzi 2.4 nebo vyšší<br />jinak nebude váš webserver moci spustit',
 		],
+		'service_ports_enable' => [
+			'title' => 'Povolit oddělení služeb',
+			'description' => 'Pokud je povoleno, panel Froxlor je obsluhován vlastním webovým serverem na vyhrazených portech, zatímco zákaznické domény pokračují v běhu na webovém serveru nakonfigurovaném výše. Vyžaduje nastavení webového serveru a portů panelu v části "Nastavení panelu".',
+		],
+		'panel_webserver' => [
+			'title' => 'Webserver panelu',
+			'description' => 'Který webserver obsluhuje panel administrace Froxlor, pokud je povoleno oddělení služeb.',
+		],
+		'panel_http_port' => [
+			'title' => 'Port HTTP panelu',
+			'description' => 'Port HTTP pro panel Froxlor, pokud je povoleno oddělení služeb (např. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Port HTTPS panelu',
+			'description' => 'Port HTTPS pro panel Froxlor, pokud je povoleno oddělení služeb (např. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Cesta k souboru fastcgi_params',
 			'description' => 'Zadejte cestu k souboru fastcgi_params nginx včetně názvu souboru',

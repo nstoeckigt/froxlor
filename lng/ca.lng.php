@@ -1861,6 +1861,22 @@ Atentament, el vostre administrador'
 			'title' => 'Utilitzi les modificacions per Apache 2.4',
 			'description' => '<strong class="text-danger">ATENCIÓ:</strong> utilitzeu-lo només si teniu instal·lada la versió 2.4 o superior d\'apache<br/>en cas contrari el vostre servidor web no podrà arrencar'
 		],
+		'service_ports_enable' => [
+			'title' => 'Activar la separació de serveis',
+			'description' => 'Quan s\'activa, el panell de Froxlor és servit pel seu propi servidor web a ports dedicats mentre que els dominis dels clients continuen funcionant al servidor web configurat anteriorment. Requereix que el servidor web del panell i els ports es configurin a "Configuració del panell".',
+		],
+		'panel_webserver' => [
+			'title' => 'Servidor web del panell',
+			'description' => 'Quin servidor web serveix el panell d\'administració de Froxlor quan la separació de serveis està activada.',
+		],
+		'panel_http_port' => [
+			'title' => 'Port HTTP del panell',
+			'description' => 'Port HTTP per al panell de Froxlor quan la separació de serveis està activada (p. ex. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Port HTTPS del panell',
+			'description' => 'Port HTTPS per al panell de Froxlor quan la separació de serveis està activada (p. ex. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Ruta al fitxer fastcgi_params',
 			'description' => 'Especifiqui la ruta al fitxer fastcgi_params de nginx incloent el nom de fitxer'

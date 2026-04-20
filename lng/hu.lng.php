@@ -2001,6 +2001,22 @@ Jelszó: {USR_PASS}
 			'title' => 'Apache 2.4 módosítások használata',
 			'description' => '<strong class="text-danger">FIGYELEM:</strong> csak akkor használja, ha ténylegesen apache 2.4 vagy magasabb verziót telepített<br />ellenkező esetben a webszerver nem fog tudni elindulni',
 		],
+		'service_ports_enable' => [
+			'title' => 'Szolgáltatás elkülönítésének engedélyezése',
+			'description' => 'Ha engedélyezve van, a Froxlor panel saját webszerverén fut dedikált portokon, miközben az ügyféldomének a fent konfigurált webszerveren futnak. Szükséges a panelwebszerver és portok beállítása a "Panel beállítások" alatt.',
+		],
+		'panel_webserver' => [
+			'title' => 'Panel webszerver',
+			'description' => 'Melyik webszerver szolgálja ki a Froxlor rendszergazdai panelt, ha a szolgáltatás elkülönítése engedélyezve van.',
+		],
+		'panel_http_port' => [
+			'title' => 'Panel HTTP port',
+			'description' => 'HTTP port a Froxlor panelhoz, ha a szolgáltatás elkülönítése engedélyezve van (pl. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Panel HTTPS port',
+			'description' => 'HTTPS port a Froxlor panelhoz, ha a szolgáltatás elkülönítése engedélyezve van (pl. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Útvonal a fastcgi_params fájlhoz',
 			'description' => 'Adja meg az nginx fastcgi_params fájljának útvonalát, beleértve a fájlnevet',

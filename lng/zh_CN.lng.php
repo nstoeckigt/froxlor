@@ -1987,6 +1987,22 @@ return [
 			'title' => '使用Apache 2.4的修改',
 			'description' => '<strong class="text-danger">注意：</strong>仅在您实际安装了Apache 2.4或更高版本时使用<br />否则您的Web服务器将无法启动',
 		],
+		'service_ports_enable' => [
+			'title' => '启用服务分离',
+			'description' => '启用后，Froxlor面板将由自己的Web服务器在专用端口上提供服务，而客户域仍在上面配置的Web服务器上运行。需要在"面板设置"下设置面板Web服务器和端口。',
+		],
+		'panel_webserver' => [
+			'title' => '面板Web服务器',
+			'description' => '启用服务分离时，哪个Web服务器为Froxlor管理面板提供服务。',
+		],
+		'panel_http_port' => [
+			'title' => '面板HTTP端口',
+			'description' => '启用服务分离时，Froxlor面板的HTTP端口（例如8080）。',
+		],
+		'panel_https_port' => [
+			'title' => '面板HTTPS端口',
+			'description' => '启用服务分离时，Froxlor面板的HTTPS端口（例如8043）。',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'fastcgi_params文件的路径',
 			'description' => '指定nginx的fastcgi_params文件的路径，包括文件名',

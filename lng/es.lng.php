@@ -1848,6 +1848,22 @@ Atentamente, su administrador'
 			'title' => 'Utilice las modificaciones para Apache 2.4',
 			'description' => '<strong class="text-danger">ATENCIÓN:</strong> utilícelo sólo si tiene instalada la versión 2.4 o superior de apache<br/>de lo contrario su servidor web no podrá arrancar'
 		],
+		'service_ports_enable' => [
+			'title' => 'Activar separación de servicios',
+			'description' => 'Cuando se activa, el panel Froxlor se sirve por su propio servidor web en puertos dedicados, mientras que los dominios de los clientes continúan ejecutándose en el servidor web configurado arriba. Requiere que el servidor web del panel y los puertos se establezcan en "Configuración del panel".',
+		],
+		'panel_webserver' => [
+			'title' => 'Servidor web del panel',
+			'description' => 'Qué servidor web sirve el panel de administración Froxlor cuando la separación de servicios está activada.',
+		],
+		'panel_http_port' => [
+			'title' => 'Puerto HTTP del panel',
+			'description' => 'Puerto HTTP para el panel Froxlor cuando la separación de servicios está activada (ej. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Puerto HTTPS del panel',
+			'description' => 'Puerto HTTPS para el panel Froxlor cuando la separación de servicios está activada (ej. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Ruta al archivo fastcgi_params',
 			'description' => 'Especifique la ruta al archivo fastcgi_params de nginx incluyendo el nombre de archivo'

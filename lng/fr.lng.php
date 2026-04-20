@@ -749,6 +749,22 @@ return [
 			'title' => 'Permettre la réinitialisation des mots de passe par les administrateurs',
 			'description' => 'Les administrateurs / revendeurs peuvent réinitialiser leurs mots de passe et il sera envoyé à leurs propres adresses e-mails',
 		],
+		'service_ports_enable' => [
+			'title' => 'Activer la séparation des services',
+			'description' => 'Quand activé, le panneau Froxlor est servi par son propre serveur web sur des ports dédiés tandis que les domaines clients continuent à s\'exécuter sur le serveur web configuré ci-dessus. Nécessite que le serveur web du panneau et les ports soient définis sous "Paramètres du panneau".',
+		],
+		'panel_webserver' => [
+			'title' => 'Serveur web du panneau',
+			'description' => 'Quel serveur web sert le panneau d\'administration Froxlor quand la séparation des services est activée.',
+		],
+		'panel_http_port' => [
+			'title' => 'Port HTTP du panneau',
+			'description' => 'Port HTTP du panneau Froxlor quand la séparation des services est activée (p. ex. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Port HTTPS du panneau',
+			'description' => 'Port HTTPS du panneau Froxlor quand la séparation des services est activée (p. ex. 8043).',
+		],
 	],
 	'traffic' => [
 		'month' => 'Mois',

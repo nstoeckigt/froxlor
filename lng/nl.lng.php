@@ -1058,6 +1058,22 @@ Met vriendelijke groet, uw beheerder',
 				'description' => 'Voor het eindeloos verwerken kunt u deze waarde instellen op \'0\'. Gelijk aan PHP_FCGI_MAX_REQUESTS.',
 			],
 		],
+		'service_ports_enable' => [
+			'title' => 'Dienst-scheiding inschakelen',
+			'description' => 'Wanneer ingeschakeld, wordt het Froxlor-paneel aangeboden door een eigen webserver op speciale poorten, terwijl klantendomeinen verder werken met de hierboven geconfigureerde webserver. Vereist dat de webserver en poorten voor het paneel zijn ingesteld onder "Panelinstellingen".',
+		],
+		'panel_webserver' => [
+			'title' => 'Paneel-webserver',
+			'description' => 'Welke webserver biedt het Froxlor-admin-paneel aan wanneer dienst-scheiding is ingeschakeld.',
+		],
+		'panel_http_port' => [
+			'title' => 'Paneel HTTP-poort',
+			'description' => 'HTTP-poort voor het Froxlor-paneel wanneer dienst-scheiding is ingeschakeld (b.v. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Paneel HTTPS-poort',
+			'description' => 'HTTPS-poort voor het Froxlor-paneel wanneer dienst-scheiding is ingeschakeld (b.v. 8043).',
+		],
 	],
 	'spf' => [
 		'use_spf' => 'SPF voor domeinen activeren?',

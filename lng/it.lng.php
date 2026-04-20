@@ -1692,6 +1692,22 @@ Nota: Perfavore <b>sii sicuro</b> di usare lo stesso nome di file come per il cr
 			'title' => 'Lista dei caratteri speciali',
 			'description' => 'Uno di questi caratteri è richiesto se è attivata l\'opzione soprastante.',
 		],
+		'service_ports_enable' => [
+			'title' => 'Abilita separazione dei servizi',
+			'description' => 'Se abilitata, il pannello Froxlor viene servito da un server web proprio su porte dedicate, mentre i domini dei clienti continuano a funzionare con il server web configurato sopra. Richiede che il server web e le porte del pannello siano impostati sotto "Impostazioni del pannello".',
+		],
+		'panel_webserver' => [
+			'title' => 'Webserver del pannello',
+			'description' => 'Quale webserver serve il pannello amministrativo Froxlor quando la separazione dei servizi è abilitata.',
+		],
+		'panel_http_port' => [
+			'title' => 'Porta HTTP del pannello',
+			'description' => 'Porta HTTP per il pannello Froxlor quando la separazione dei servizi è abilitata (es. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Porta HTTPS del pannello',
+			'description' => 'Porta HTTPS per il pannello Froxlor quando la separazione dei servizi è abilitata (es. 8043).',
+		],
 	],
 	'spf' => [
 		'use_spf' => 'Attiva SPF per i domini?',

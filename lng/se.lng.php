@@ -548,6 +548,22 @@ return [
 		'mysql_access_host' => [
 			'description' => 'En kommaseparerad lista med datornamn som tillåts att kontakta MySQL servern.',
 		],
+		'service_ports_enable' => [
+			'title' => 'Aktivera tjänsteseparation',
+			'description' => 'När den är aktiverad serveras Froxlor-panelen av sin egen webbserver på dedikerade portar medan kunddomäner fortsätter att köras på webbservern som konfigurerats ovan. Kräver att panelens webbserver och portar ställs in under "Panelinställningar".',
+		],
+		'panel_webserver' => [
+			'title' => 'Panelens webbserver',
+			'description' => 'Vilken webbserver betjänar Froxlor admin-panelen när tjänsteseparation är aktiverad.',
+		],
+		'panel_http_port' => [
+			'title' => 'Panelens HTTP-port',
+			'description' => 'HTTP-port för Froxlor-panelen när tjänsteseparation är aktiverad (t.ex. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Panelens HTTPS-port',
+			'description' => 'HTTPS-port för Froxlor-panelen när tjänsteseparation är aktiverad (t.ex. 8043).',
+		],
 	],
 	'traffic' => [
 		'month' => 'Månad',
