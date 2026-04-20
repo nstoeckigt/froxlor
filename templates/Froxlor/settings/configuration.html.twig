@@ -72,11 +72,22 @@
 										<div class="form-check">
 											{% set recommended = false %}
 											{% if stype == 'panel' %}
-												{% if (dtype == 'nginx' and get_panel_webserver() == 'nginx') or (dtype == 'apache' and get_panel_webserver() == 'apache') %}
+												{% if get_setting('system.enable_service_ports') == '1' %}
+													{% set panel_web = get_setting('system.panel_service_ports')|split(';')[0]|split(':')[0] %}
+												{% else %}
+													{% set panel_web = get_setting('system.webserver') %}
+												{% endif %}
+												{% if (dtype == 'nginx' and panel_web == 'nginx') or (dtype == 'apache' and panel_web == 'apache') %}
 													{% set recommended = true %}
 												{% endif %}
 											{% elseif stype == 'http' %}
-												{% if (dtype == 'apache22' and get_customer_webserver() == 'apache' and get_setting('system.apache24') == '0') or (dtype == 'apache24' and get_customer_webserver() == 'apache' and get_setting('system.apache24') == '1') or (dtype == 'nginx' and get_customer_webserver() == 'nginx') %}
+												{# Use customer_service_ports if enabled, otherwise fall back to system.webserver #}
+												{% if get_setting('system.enable_service_ports') == '1' %}
+													{% set customer_web = get_setting('system.customer_service_ports')|split(';')[0]|split(':')[0] %}
+												{% else %}
+													{% set customer_web = get_setting('system.webserver') %}
+												{% endif %}
+												{% if (dtype == 'apache' and customer_web == 'apache') or (dtype == 'nginx' and customer_web == 'nginx') %}
 													{% set recommended = true %}
 												{% endif %}
 											{% else %}
