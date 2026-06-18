@@ -32,7 +32,7 @@
 						<div class="card h-100 position-relative">
 							<div class="card-body">
 								<h5 class="card-title">{{ stype|upper }}</h5>
-								{% if stype != 'system' %}
+								{% if stype != 'system' and stype != 'http' %}
 									<div class="form-check">
 										<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ stype }}none" value="x" checked>
 										<label class="form-check-label" for="{{ stype }}none">
@@ -71,10 +71,12 @@
 									{% else %}
 										<div class="form-check">
 											{% set recommended = false %}
+											{% set uses_apache = get_setting('system.webserver') == 'apache2' or (get_setting('system.enable_service_ports') == '1' and get_panel_webserver() == 'apache2') %}
+											{% set uses_nginx = get_setting('system.webserver') == 'nginx' or (get_setting('system.enable_service_ports') == '1' and get_panel_webserver() == 'nginx') %}
 											{% if
-												(dtype == 'apache22' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '0') or
-												(dtype == 'apache24' and get_setting('system.webserver') == 'apache2' and get_setting('system.apache24') == '1') or
-												(dtype == 'nginx' and get_setting('system.webserver') == 'nginx') or
+												(dtype == 'apache22' and uses_apache and get_setting('system.apache24') == '0') or
+												(dtype == 'apache24' and uses_apache and get_setting('system.apache24') == '1') or
+												(dtype == 'nginx' and uses_nginx) or
 												(dtype == 'bind' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'Bind') or
 												(dtype == 'powerdns' and get_setting('system.bind_enable') == '1' and get_setting('system.dns_server') == 'PowerDNS') or
 												(dtype == 'proftpd' and get_setting('system.ftpserver') == 'proftpd') or
@@ -83,7 +85,11 @@
 											%}
 												{% set recommended = true %}
 											{% endif %}
-											<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}">
+											{% if stype == 'http' %}
+												<input class="form-check-input" type="checkbox" name="system[{{ dtype }}]" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}" {% if recommended %}checked{% endif %}>
+											{% else %}
+												<input class="form-check-input" type="radio" name="{{ stype }}" id="{{ dtype }}" value="{{ dtype }}" data-recommended="{{ recommended }}" {% if recommended %}checked{% endif %}>
+											{% endif %}
 											<label class="form-check-label" for="{{ dtype }}">
 												{% if recommended %}
 													<strong>{{ daemon.title }}<span class="text-danger">*</span>

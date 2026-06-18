@@ -37,6 +37,7 @@ use Froxlor\Http\Directory;
 use Froxlor\Http\Statistics;
 use Froxlor\Settings;
 use Froxlor\System\Cronjob;
+use Froxlor\System\ServicePorts;
 use Froxlor\Validate\Validate;
 use Froxlor\System\Crypt;
 use PDO;
@@ -98,6 +99,12 @@ class Nginx extends HttpConfigBase
 				$ip = $row_ipsandports['ip'];
 			}
 			$port = $row_ipsandports['port'];
+
+			// Service port separation - skip ports not handled by nginx
+			if (ServicePorts::isEnabled() && !ServicePorts::isPortForWebserver((int) $port, 'nginx')) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'nginx::createIpPort: skipping port ' . $port . ' (not assigned to nginx)');
+				continue;
+			}
 
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'nginx::createIpPort: creating ip/port settings for  ' . $ip . ":" . $port);
 			$vhost_filename = FileDir::makeCorrectFile(Settings::Get('system.apacheconf_vhost') . '/10_froxlor_ipandport_' . trim(str_replace(':', '.', $row_ipsandports['ip']), '.') . '.' . $row_ipsandports['port'] . '.conf');
@@ -511,6 +518,14 @@ class Nginx extends HttpConfigBase
 
 		$query = "SELECT * FROM `" . TABLE_PANEL_IPSANDPORTS . "` `i`, `" . TABLE_DOMAINTOIP . "` `dip`
 			WHERE dip.id_domain = :domainid AND i.id = dip.id_ipandports ";
+
+		// Service separation: exclude panel ports when the panel is served by a different webserver
+		if (ServicePorts::isEnabled() && ServicePorts::getPanelWebserver() !== ServicePorts::getCustomerWebserver()) {
+			$panelPorts = array_keys(ServicePorts::getPanelPorts());
+			if (!empty($panelPorts)) {
+				$query .= " AND i.port NOT IN (" . implode(',', array_map('intval', $panelPorts)) . ")";
+			}
+		}
 
 		if ($ssl_vhost === true && ($domain['ssl'] == '1' || $domain['ssl_redirect'] == '1')) {
 			// by ordering by cert-file the row with filled out SSL-Fields will be shown last,

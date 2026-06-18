@@ -2026,6 +2026,22 @@ Yours sincerely, your administrator',
 			'title' => 'Use modifications for Apache 2.4',
 			'description' => '<strong class="text-danger">ATTENTION:</strong> use only if you actually have apache version 2.4 or higher installed<br />otherwise your webserver will not be able to start',
 		],
+		'service_ports_enable' => [
+			'title' => 'Enable service separation',
+			'description' => 'When enabled, the Froxlor panel is served by its own webserver on dedicated ports while customer domains keep running on the webserver configured above. Requires the panel webserver and ports to be set under "Panel settings".',
+		],
+		'panel_webserver' => [
+			'title' => 'Panel webserver',
+			'description' => 'Which webserver serves the Froxlor admin panel when service separation is enabled.',
+		],
+		'panel_http_port' => [
+			'title' => 'Panel HTTP port',
+			'description' => 'HTTP port for the Froxlor panel when service separation is enabled (e.g. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Panel HTTPS port',
+			'description' => 'HTTPS port for the Froxlor panel when service separation is enabled (e.g. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Path to fastcgi_params file',
 			'description' => 'Specify the path to nginx\'s fastcgi_params file including filename',

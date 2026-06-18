@@ -453,6 +453,16 @@ return [
 						'apache2',
 					],
 				],
+				'system_enable_service_ports' => [
+					'label' => lng('serversettings.service_ports_enable'),
+					'settinggroup' => 'system',
+					'varname' => 'enable_service_ports',
+					'type' => 'checkbox',
+					'default' => false,
+					'save_method' => 'storeSettingField',
+					'description' => lng('serversettings.service_ports_enable_desc'),
+					'advanced_mode' => true
+				],
 			]
 		]
 	]

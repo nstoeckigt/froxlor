@@ -1905,6 +1905,22 @@ Vielen Dank, Ihr Administrator',
 			'title' => 'Anpassungen für Apache 2.4 verwenden',
 			'description' => '<div class="text-danger">Achtung: Bitte nur verwenden, wenn wirklich Apache mit Version 2.4 oder höher installiert ist, ansonsten wird der Webserver nicht starten.</div>',
 		],
+		'service_ports_enable' => [
+			'title' => 'Dienst-Trennung aktivieren',
+			'description' => 'Wenn aktiviert, wird das Froxlor-Panel von einem eigenen Webserver auf dedizierten Ports bereitgestellt, während Kunden-Domains weiterhin vom oben konfigurierten Webserver bedient werden. Setzt voraus, dass Webserver und Ports für das Panel unter "Panel-Einstellungen" gesetzt sind.',
+		],
+		'panel_webserver' => [
+			'title' => 'Panel-Webserver',
+			'description' => 'Welcher Webserver stellt das Froxlor-Admin-Panel bereit, wenn die Dienst-Trennung aktiv ist.',
+		],
+		'panel_http_port' => [
+			'title' => 'Panel HTTP-Port',
+			'description' => 'HTTP-Port des Froxlor-Panels bei aktiver Dienst-Trennung (z.B. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Panel HTTPS-Port',
+			'description' => 'HTTPS-Port des Froxlor-Panels bei aktiver Dienst-Trennung (z.B. 8043).',
+		],
 		'nginx_fastcgiparams' => [
 			'title' => 'Pfad zur fastcgi_params Datei',
 			'description' => 'Geben Sie den Pfad zu nginx\'s fastcgi_params Datei an. Inklusive Dateiname!',

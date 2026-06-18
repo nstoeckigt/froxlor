@@ -880,6 +880,22 @@ return [
 			'title' => 'Ativa mover domínios entre clientes',
 			'description' => 'Se ativado você pode trocar o cliente de um domínio para administração de outro.<br /><b>Attention:</b> froxlor não troca nenhum caminho. Isto pode fazer com que domínios parem de funcionar',
 		],
+		'service_ports_enable' => [
+			'title' => 'Ativar separação de serviços',
+			'description' => 'Quando ativado, o painel Froxlor é servido por seu próprio servidor web em portas dedicadas, enquanto os domínios dos clientes continuam funcionando com o servidor web configurado acima. Requer que o servidor web e as portas do painel sejam definidas em "Configurações do painel".',
+		],
+		'panel_webserver' => [
+			'title' => 'Servidor web do painel',
+			'description' => 'Qual servidor web serve o painel de administração Froxlor quando a separação de serviços está ativada.',
+		],
+		'panel_http_port' => [
+			'title' => 'Porta HTTP do painel',
+			'description' => 'Porta HTTP para o painel Froxlor quando a separação de serviços está ativada (ex. 8080).',
+		],
+		'panel_https_port' => [
+			'title' => 'Porta HTTPS do painel',
+			'description' => 'Porta HTTPS para o painel Froxlor quando a separação de serviços está ativada (ex. 8043).',
+		],
 	],
 	'traffic' => [
 		'month' => 'Mês',

@@ -159,16 +159,52 @@ class TasksCron extends FroxlorCron
 
 	private static function rebuildWebserverConfigs()
 	{
-		if (Settings::Get('system.webserver') == "apache2") {
+		$customerWebserver = Settings::Get('system.webserver');
+		$webservers = [$customerWebserver];
+
+		if (\Froxlor\System\ServicePorts::isEnabled()) {
+			$panelWebserver = \Froxlor\System\ServicePorts::getPanelWebserver();
+			if ($panelWebserver !== '' && $panelWebserver !== $customerWebserver) {
+				$webservers[] = $panelWebserver;
+			}
+		}
+
+		foreach (array_unique($webservers) as $webserver) {
+			self::rebuildWebserverConfig($webserver);
+		}
+
+		// if we use php-fpm and have a local user for froxlor, we need to
+		// add the webserver-user to the local-group in order to allow the webserver
+		// to access the fpm-socket
+		if (Settings::Get('phpfpm.enabled') == 1 && function_exists("posix_getgrnam")) {
+			// get group info about the local-user's group (e.g. froxlorlocal)
+			$groupinfo = posix_getgrnam(Settings::Get('phpfpm.vhost_httpgroup'));
+			// check group members
+			if (isset($groupinfo['members']) && !in_array(Settings::Get('system.httpuser'), $groupinfo['members'])) {
+				// webserver has no access, add it
+				if (FileDir::isFreeBSD()) {
+					FileDir::safe_exec('pw usermod ' . escapeshellarg(Settings::Get('system.httpuser')) . ' -G ' . escapeshellarg(Settings::Get('phpfpm.vhost_httpgroup')));
+				} else {
+					FileDir::safe_exec('usermod -a -G ' . escapeshellarg(Settings::Get('phpfpm.vhost_httpgroup')) . ' ' . escapeshellarg(Settings::Get('system.httpuser')));
+				}
+			}
+		}
+	}
+
+	private static function rebuildWebserverConfig(string $webserver_type): void
+	{
+		if ($webserver_type == "apache2") {
 			$websrv = '\\Froxlor\\Cron\\Http\\Apache';
 			if (Settings::Get('system.mod_fcgid') == 1 || Settings::Get('phpfpm.enabled') == 1) {
 				$websrv .= 'Fcgi';
 			}
-		} elseif (Settings::Get('system.webserver') == "nginx") {
+		} elseif ($webserver_type == "nginx") {
 			$websrv = '\\Froxlor\\Cron\\Http\\Nginx';
 			if (Settings::Get('phpfpm.enabled') == 1) {
 				$websrv .= 'Fcgi';
 			}
+		} else {
+			return;
 		}
 
 		// get configuration-I/O object
@@ -188,23 +224,6 @@ class TasksCron extends FroxlorCron
 			$webserver->reload();
 		} else {
 			echo "Please check you Webserver settings\n";
-		}
-
-		// if we use php-fpm and have a local user for froxlor, we need to
-		// add the webserver-user to the local-group in order to allow the webserver
-		// to access the fpm-socket
-		if (Settings::Get('phpfpm.enabled') == 1 && function_exists("posix_getgrnam")) {
-			// get group info about the local-user's group (e.g. froxlorlocal)
-			$groupinfo = posix_getgrnam(Settings::Get('phpfpm.vhost_httpgroup'));
-			// check group members
-			if (isset($groupinfo['members']) && !in_array(Settings::Get('system.httpuser'), $groupinfo['members'])) {
-				// webserver has no access, add it
-				if (FileDir::isFreeBSD()) {
-					FileDir::safe_exec('pw usermod ' . escapeshellarg(Settings::Get('system.httpuser')) . ' -G ' . escapeshellarg(Settings::Get('phpfpm.vhost_httpgroup')));
-				} else {
-					FileDir::safe_exec('usermod -a -G ' . escapeshellarg(Settings::Get('phpfpm.vhost_httpgroup')) . ' ' . escapeshellarg(Settings::Get('system.httpuser')));
-				}
-			}
 		}
 
 		// Tell the Let's Encrypt cron it's okay to generate the certificate and enable the redirect afterwards
