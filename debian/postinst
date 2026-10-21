@@ -25,12 +25,14 @@ case "$1" in
             echo "     php $FROXLOR_DIR/admin_updates.php"
             echo "  3. Richten Sie einen Webserver-VHost auf $FROXLOR_DIR ein"
             echo "  4. Richten Sie einen Cronjob ein:"
-            echo "     * * * * * root /usr/bin/php $FROXLOR_DIR/lib/Froxlor/Cron/Cron.php"
+            echo "     * * * * * root /usr/bin/php $FROXLOR_DIR/bin/froxlor-cli froxlor:cron 'tasks' -q"
         fi
 
-        # Cronjob sicherstellen (nur hinzufügen, nicht überschreiben)
-        if ! grep -q "froxlor:cron" /etc/cron.d/froxlor 2>/dev/null; then
-            echo "* * * * * root /usr/bin/php $FROXLOR_DIR/lib/Froxlor/Cron/Cron.php --force" > /etc/cron.d/froxlor
+        # Cronjob sicherstellen: Bestehenden Eintrag auf neuen Pfad umbiegen
+        if grep -q "froxlor:cron" /etc/cron.d/froxlor 2>/dev/null; then
+            sed -i "s|/var/www/html/froxlor/bin/froxlor-cli|$FROXLOR_DIR/bin/froxlor-cli|g" /etc/cron.d/froxlor
+        else
+            echo "* * * * * root /usr/bin/php $FROXLOR_DIR/bin/froxlor-cli froxlor:cron 'tasks' -q 1> /dev/null" > /etc/cron.d/froxlor
             chmod 644 /etc/cron.d/froxlor
         fi
         ;;
