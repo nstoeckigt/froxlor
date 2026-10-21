@@ -10,7 +10,7 @@ case "$1" in
         # Nicht automatisch löschen: Benutzerdaten sollen erhalten bleiben
         echo "Froxlor-Paket entfernt. Dateien unter /usr/share/froxlor bleiben erhalten."
         ;;
-    failed-upgrade)
+    upgrade|failed-upgrade|abort-upgrade|disappear)
         ;;
     *)
         echo "prerm called with unknown argument \`$1'" >&2

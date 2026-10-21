@@ -2,7 +2,7 @@
 set -e
 
 case "$1" in
-    remove|purge|deconfigure|failed-upgrade|abort-install|abort-upgrade|disappear)
+    remove|purge|deconfigure|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
         ;;
     *)
         echo "postrm called with unknown argument \`$1'" >&2
