@@ -76,6 +76,13 @@ class Certificates extends ApiCommand implements ResourceEntity
 		]);
 		$domainid = $domain['id'];
 
+		// certificate and private key are managed fully automatically for Let's Encrypt
+		// enabled domains and must not be editable via the API either - mirrors the same
+		// check in ssl_editor.php (UI) and the read-side gate in get()/listing() below
+		if ($domain['letsencrypt'] == '1') {
+			Response::standardError('sslcertificateisletsencryptmanaged', '', true);
+		}
+
 		// parameters
 		$ssl_cert_file = $this->getParam('ssl_cert_file');
 		$ssl_key_file = $this->getParam('ssl_key_file');
@@ -173,7 +180,7 @@ class Certificates extends ApiCommand implements ResourceEntity
 			// get data from certificate to store in the table
 			$validfromdate = empty($cert_content['validFrom_time_t']) ? null : date("Y-m-d H:i:s", $cert_content['validFrom_time_t']);
 			$validtodate = empty($cert_content['validTo_time_t']) ? null : date("Y-m-d H:i:s", $cert_content['validTo_time_t']);
-			$issuer = $cert_content['issuer']['O'] ?? "";
+			$issuer = preg_replace('/[^\p{L}0-9 ._\/\'&-]+/u', '', $cert_content['issuer']['O'] ?? "");
 		}
 
 		// Add/Update database entry
@@ -241,6 +248,13 @@ class Certificates extends ApiCommand implements ResourceEntity
 			'id' => $id,
 			'domainname' => $domainname
 		]);
+
+		// certificate and private key are managed fully automatically for Let's Encrypt
+		// enabled domains and must not be editable via the API either - mirrors the same
+		// check in ssl_editor.php (UI) and the read-side gate in get()/listing() below
+		if ($domain['letsencrypt'] == '1') {
+			Response::standardError('sslcertificateisletsencryptmanaged', '', true);
+		}
 
 		// parameters
 		$ssl_cert_file = $this->getParam('ssl_cert_file');
@@ -325,6 +339,12 @@ class Certificates extends ApiCommand implements ResourceEntity
 					}
 				}
 			}
+			// the private key for a Let's Encrypt managed domain is generated and stored
+			// server-side only - froxlor's own UI never shows it for such domains either
+			// (see Domain::canEditSSL()), so it must not round-trip through the API
+			if ($cert['letsencrypt'] == '1') {
+				unset($cert['ssl_key_file']);
+			}
 			$result[] = $cert;
 		}
 		return $this->response([
@@ -368,6 +388,12 @@ class Certificates extends ApiCommand implements ResourceEntity
 		]);
 		if (!$result) {
 			throw new Exception("Domain '" . $domain['domain'] . "' does not have a certificate.", 412);
+		}
+		// the private key for a Let's Encrypt managed domain is generated and stored
+		// server-side only - froxlor's own UI never shows it for such domains either
+		// (see Domain::canEditSSL()), so it must not round-trip through the API
+		if ($domain['letsencrypt'] == '1') {
+			unset($result['ssl_key_file']);
 		}
 		return $this->response($result);
 	}

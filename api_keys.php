@@ -62,7 +62,10 @@ if ($action == 'delete' && $id > 0) {
 		'page' => $page
 	]);
 } elseif (Request::post('send') == 'send' && $action == 'deletesure' && $id > 0) {
-	$chk = (AREA == 'admin' && $userinfo['customers_see_all'] == '1') ? true : false;
+	// fully trusted admin (e.g. super-admin) may delete any key; every other case below is
+	// re-checked against an ownership-scoped query - customers_see_all only ever widens
+	// visibility to customer-owned keys, never to another administrator's own key
+	$chk = (AREA == 'admin' && $userinfo['change_serversettings'] == '1') ? true : false;
 	if (AREA == 'customer') {
 		$chk_stmt = Database::prepare("
 				SELECT c.customerid FROM `" . TABLE_PANEL_CUSTOMERS . "` c
@@ -78,6 +81,15 @@ if ($action == 'delete' && $id > 0) {
 				SELECT a.adminid FROM `" . TABLE_PANEL_ADMINS . "` a
 				LEFT JOIN `" . TABLE_API_KEYS . "` ak ON ak.adminid = a.adminid
 				WHERE ak.`id` = :id AND a.`adminid` = :aid
+			");
+		$chk = Database::pexecute_first($chk_stmt, [
+			'id' => $id,
+			'aid' => $userinfo['adminid']
+		]);
+	} elseif (AREA == 'admin' && $userinfo['customers_see_all'] == '1' && $userinfo['change_serversettings'] == '0') {
+		$chk_stmt = Database::prepare("
+				SELECT ak.id FROM `" . TABLE_API_KEYS . "` ak
+				WHERE ak.`id` = :id AND (ak.`customerid` != 0 OR ak.`adminid` = :aid)
 			");
 		$chk = Database::pexecute_first($chk_stmt, [
 			'id' => $id,
@@ -168,9 +180,18 @@ if (AREA == 'admin' && $userinfo['customers_see_all'] == '0') {
 	$fields = [
 		'c.loginname' => lng('login.username')
 	];
-} else {
-	// admin who can see all customers / reseller / admins
+} elseif (AREA == 'admin' && $userinfo['change_serversettings'] == '1') {
+	// fully trusted admin (e.g. super-admin): may see every key, including other admins'
 	$keys_stmt_query .= "1 ";
+	$fields = [
+		'a.loginname' => lng('login.username')
+	];
+} else {
+	// reseller with customers_see_all but not change_serversettings: widen visibility to
+	// every customer's key (that's what customers_see_all grants), but never to another
+	// administrator's own key - that would leak full super-admin/other-reseller credentials
+	$keys_stmt_query .= "(ak.customerid != 0 OR ak.adminid = :adminid) ";
+	$qry_params['adminid'] = $userinfo['adminid'];
 	$fields = [
 		'a.loginname' => lng('login.username')
 	];

@@ -702,6 +702,10 @@ opcache.validate_timestamps'),
 	('system', 'req_limit_interval', 60),
 	('system', 'report_web_bccadmin', '0'),
 	('system', 'webserver_serveradmin', 'customer'),
+	('system', 'enable_service_ports', '0'),
+	('system', 'panel_webserver', ''),
+	('system', 'panel_http_port', '8080'),
+	('system', 'panel_https_port', '8043'),
 	('api', 'enabled', '0'),
 	('api', 'customer_default', '1'),
 	('2fa', 'enabled', '1'),
@@ -748,8 +752,8 @@ opcache.validate_timestamps'),
 	('panel', 'logo_overridecustom', '0'),
 	('panel', 'settings_mode', '0'),
 	('panel', 'menu_collapsed', '1'),
-	('panel', 'version', '2.3.6'),
-	('panel', 'db_version', '202603100');
+	('panel', 'version', '2.3.16'),
+	('panel', 'db_version', '202608210');
 
 
 DROP TABLE IF EXISTS `panel_tasks`;
@@ -1075,6 +1079,7 @@ CREATE TABLE `panel_2fa_tokens` (
   `selector` varchar(200) NOT NULL,
   `token` varchar(200) NOT NULL,
   `userid` int(11) NOT NULL default '0',
+  `admin` tinyint(1) unsigned NOT NULL default '0',
   `valid_until` int(15) NOT NULL,
   PRIMARY KEY  (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;

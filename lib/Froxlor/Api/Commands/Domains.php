@@ -95,6 +95,8 @@ class Domains extends ApiCommand implements ResourceEntity
 					$row['ipsandports'] = $this->getIpsForDomain($row['id']);
 				}
 				$row['domain_hascert'] = $this->getHasCertValueForDomain((int)$row['id'], (int)$row['parentdomainid']);
+				// unset sensitive data
+				unset($row['dkim_privkey']);
 				$result[] = $row;
 			}
 			return $this->response([
@@ -431,7 +433,12 @@ class Domains extends ApiCommand implements ResourceEntity
 				}
 				$_documentroot = FileDir::makeCorrectDir($customer['documentroot'] . $path_suffix);
 
-				$documentroot = Validate::validate($documentroot, 'documentroot', Validate::REGEX_DIR, '', [], true);
+				// documentroot may also be a redirect-URL (checked/validated further down via
+				// Validate::validateUrl()); REGEX_DIR would reject it due to the "://", so only
+				// apply the directory-path validation to actual paths
+				if (!preg_match('/^https?\:\/\//', $documentroot)) {
+					$documentroot = Validate::validate($documentroot, 'documentroot', Validate::REGEX_DIR, '', [], true);
+				}
 
 				// If path is empty and 'Use domain name as default value for DocumentRoot path' is enabled in settings,
 				// set default path to subdomain or domain name
@@ -967,6 +974,8 @@ class Domains extends ApiCommand implements ResourceEntity
 					$result['ipsandports'] = $this->getIpsForDomain($result['id']);
 				}
 				$result['domain_hascert'] = $this->getHasCertValueForDomain((int)$result['id'], (int)$result['parentdomainid']);
+				// unset sensitive data
+				unset($result['dkim_privkey']);
 				$this->logger()->logAction(FroxlorLogger::ADM_ACTION, LOG_INFO, "[API] get domain '" . $result['domain'] . "'");
 				return $this->response($result);
 			}
@@ -1013,7 +1022,8 @@ class Domains extends ApiCommand implements ResourceEntity
 		$aip_param = [];
 		if ($this->getUserDetail('ip') != "-1") {
 			// handle multiple-ip-array
-			$additional_ip_condition = " AND `ip` IN (" . implode(",", json_decode($this->getUserDetail('ip'), true)) . ") ";
+			$additional_ip_ids = array_map('intval', json_decode($this->getUserDetail('ip'), true));
+			$additional_ip_condition = " AND `ip` IN (" . implode(",", $additional_ip_ids) . ") ";
 		}
 
 		if (!empty($p_ipandports) && is_array($p_ipandports)) {
@@ -1423,7 +1433,12 @@ class Domains extends ApiCommand implements ResourceEntity
 				$serveraliasoption = $p_serveraliasoption;
 			}
 
-			$documentroot = Validate::validate($documentroot, 'documentroot', Validate::REGEX_DIR, '', [], true);
+			// documentroot may also be a redirect-URL (checked/validated further down via
+			// Validate::validateUrl()); REGEX_DIR would reject it due to the "://", so only
+			// apply the directory-path validation to actual paths
+			if (!preg_match('/^https?\:\/\//', $documentroot)) {
+				$documentroot = Validate::validate($documentroot, 'documentroot', Validate::REGEX_DIR, '', [], true);
+			}
 
 			if (!empty($documentroot) && $documentroot != $result['documentroot'] && substr($documentroot, 0, 1) == '/' && substr($documentroot, 0, strlen($customer['documentroot'])) != $customer['documentroot'] && $this->getUserDetail('change_serversettings') != '1') {
 				Response::standardError('pathmustberelative', '', true);

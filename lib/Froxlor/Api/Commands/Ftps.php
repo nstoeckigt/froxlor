@@ -102,6 +102,12 @@ class Ftps extends ApiCommand implements ResourceEntity
 			$ftpdomain = $this->getParam('ftp_domain', true, '');
 
 			$additional_members = $this->getParam('additional_members', true, []);
+			foreach ($additional_members as $index => $add_member) {
+				// members end up comma-joined, unsanitized, in the NSS group-file line built by
+				// Extrausers::generateFile() - reject anything but a plain username here so a
+				// newline/colon/comma can't inject or split a line in that root-owned file
+				$additional_members[$index] = Validate::validate($add_member, 'additional_members', '/^[a-zA-Z0-9][a-zA-Z0-9@.\-_]*\$?$/D', '', [], true);
+			}
 
 			// validation
 			$password = Validate::validate($password, 'password', '', '', [], true);
@@ -377,6 +383,8 @@ class Ftps extends ApiCommand implements ResourceEntity
 		$params['idun'] = ($id <= 0 ? $username : $id);
 		$result = Database::pexecute_first($result_stmt, $params, true, true);
 		if ($result) {
+			// unset sensitive data
+			unset($result['password']);
 			$this->logger()->logAction($this->isAdmin() ? FroxlorLogger::ADM_ACTION : FroxlorLogger::USR_ACTION, LOG_INFO, "[API] get ftp-user '" . $result['username'] . "'");
 			return $this->response($result);
 		}
@@ -554,6 +562,8 @@ class Ftps extends ApiCommand implements ResourceEntity
 			WHERE `customerid` IN (" . implode(", ", $customer_ids) . ")" . $this->getSearchWhere($query_fields, true) . $this->getOrderBy() . $this->getLimit());
 		Database::pexecute($result_stmt, $query_fields, true, true);
 		while ($row = $result_stmt->fetch(PDO::FETCH_ASSOC)) {
+			// unset sensitive data
+			unset($row['password']);
 			$result[] = $row;
 		}
 		$this->logger()->logAction($this->isAdmin() ? FroxlorLogger::ADM_ACTION : FroxlorLogger::USR_ACTION, LOG_INFO, "[API] list ftp-users");

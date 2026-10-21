@@ -587,6 +587,7 @@ return [
 		'also_change_ftp' => ' also change password of the main FTP account',
 		'also_change_stats' => ' also change password for the statistics page',
 		'also_change_global_mysql' => 'also change password for global MySQL account',
+		'apikeys_hint' => 'Your password has been changed successfully. This account still has %s active API key(s) issued under the old password - if you changed your password because it may have been compromised, consider rotating them on the API keys page.',
 	],
 	'cron' => [
 		'cronname' => 'cronjob-name',
@@ -758,6 +759,7 @@ return [
 			alt:    [-100000.00 .. 42849672.95] BY .01 (altitude in meters)
 			siz, hp, vp: [0 .. 90000000.00] (size/precision in meters)</code><br>Example: <code>52 22 23.000 N 4 53 32.000 E -2.00m 0.00m 10000m 10m</code>',
 			'MX' => 'Mail exchange record, maps a domain name to a mailserver for that domain.<br>Example: <code>10 mail.example.com</code><br>Note: For priority, use field above',
+			'NAPTR' => 'Naming Authority Pointer, allows regular expression based rewriting of domain names which can then be used as URIs, further domain names to lookups, etc. (RFC 3403)',
 			'NS' => 'Delegates a DNS zone to use the given authoritative name servers.',
 			'RP' => 'Responsible Person record<br>Structure: <code>mailbox[replace @ with a dot] txt-record-name</code><br>Example: <code>team.froxlor.org. froxlor.org.</code>',
 			'SRV' => 'Service location record, used for newer protocols instead of creating protocol-specific records such as MX.<br>Structure: <code>priority weight port target</code><br>Example: <code>0 5 5060 sipserver.example.com.</code><br>Note: For priority, use field above',
@@ -973,6 +975,7 @@ return [
 		'notrequiredpasswordlength' => 'The given password is too short. Please enter at least %s characters.',
 		'overviewsettingoptionisnotavalidfield' => 'Whoops, a field that should be displayed as an option in the settings-overview is not an excepted type. You can blame the developers for this. This should not happen!',
 		'pathmaynotcontaincolon' => 'The path you have entered should not contain a colon (":"). Please enter a correct path value.',
+		'pathexistsasfile' => 'The path you have entered exists as file. Please enter another path.',
 		'invaliddocumentrooturl' => 'The URL you have entered for the documentroot is not valid. Please enter a correct URL or a unix-path.',
 		'exception' => '%s',
 		'notrequiredpasswordcomplexity' => 'The specified password-complexity was not satisfied.<br />Please contact your administrator if you have any questions about the complexity-specification',
@@ -997,6 +1000,7 @@ return [
 		'sslcertificateinvalidcertkeypair' => 'The given private-key does not belong to the given certificate',
 		'sslcertificateinvalidca' => 'The given CA certificate data does not seem to be a valid certificate',
 		'sslcertificateinvalidchain' => 'The given certificate chain data does not seem to be a valid certificate',
+		'sslcertificateisletsencryptmanaged' => 'SSL certificates for Let\'s Encrypt enabled domains are managed automatically and cannot be edited manually.',
 		'givendirnotallowed' => 'The given directory in field %s is not allowed.',
 		'sslredirectonlypossiblewithsslipport' => 'Using Let\'s Encrypt is only possible when the domain has at least one ssl-enabled IP/port combination assigned.',
 		'fcgidstillenableddeadlock' => 'FCGID is currently active.<br />Please deactivate it before switching to another webserver than Apache2',
@@ -1057,6 +1061,8 @@ return [
 		'domain_nopunycode' => 'You must not specify punycode (IDNA). The domain will automatically be converted',
 		'domain_noipaddress' => 'Cannot add an IP address as domain',
 		'dns_record_toolong' => 'Records/labels can only be up to 63 characters',
+		'dns_invalid_recordlabel' => 'Record/label contains illegal characters',
+		'dns_unknown_type' => 'Unsupported dns-entry type',
 		'noipportgiven' => 'No IP/port given',
 		'nosslippportgiven' => 'When enabling SSL you need to select a SSL IP/port',
 		'jsonextensionnotfound' => 'This feature requires the php json-extension.',
@@ -1081,6 +1087,7 @@ return [
 		'emaildomainstillhasaddresses' => 'Cannot deactivate mail-domain flag, as there are still email-addresses for this domain.',
 		'tls13requiredforhttp3' => 'Domain http3 flag enabled but ssl-protocols does not include TLSv1.3',
 		'senderdomainnotowned' => 'Given domain "%s" cannot be used.',
+		'senderdomainexternal' => 'Given external domain "%s" cannot be used.',
 		'emailhasnoaccount' => 'Given email address "%s" has no account, cannot add sender address.',
 	],
 	'extras' => [

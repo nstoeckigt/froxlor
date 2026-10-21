@@ -62,8 +62,8 @@ class ExportCron extends FroxlorCron
 
 		if (is_array($row['data'])) {
 			if (isset($row['data']['customerid']) && isset($row['data']['loginname']) && isset($row['data']['destdir'])) {
-				$row['data']['destdir'] = FileDir::makeCorrectDir($row['data']['destdir']);
 				$customerdocroot = FileDir::makeCorrectDir(Settings::Get('system.documentroot_prefix') . '/' . $row['data']['loginname'] . '/');
+				$row['data']['destdir'] = FileDir::makeCorrectDir($row['data']['destdir'], $customerdocroot);
 
 				// create folder if not exists
 				if (!file_exists($row['data']['destdir']) && $row['data']['destdir'] != '/' && $row['data']['destdir'] != Settings::Get('system.documentroot_prefix') && $row['data']['destdir'] != $customerdocroot) {
@@ -95,7 +95,7 @@ class ExportCron extends FroxlorCron
 		$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_NOTICE, 'Creating data export for user "' . $data['loginname'] . '"');
 
 		// create tmp folder
-		$tmpdir = FileDir::makeCorrectDir($data['destdir'] . '/.tmp/');
+		$tmpdir = FileDir::makeCorrectDir($data['destdir'] . '/.tmp/', $customerdocroot);
 		$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'Creating tmp-folder "' . $tmpdir . '"');
 		$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'shell> mkdir -p ' . escapeshellarg($tmpdir));
 		FileDir::safe_exec('mkdir -p ' . escapeshellarg($tmpdir));
@@ -221,6 +221,16 @@ class ExportCron extends FroxlorCron
 				$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'shell> tar cfz ' . escapeshellarg($export_file) . ' -C ' . escapeshellarg($tmpdir) . ' ' . trim($create_export_tar_data));
 				FileDir::safe_exec('tar cfz ' . escapeshellarg($export_file) . ' -C ' . escapeshellarg($tmpdir) . ' ' . trim($create_export_tar_data));
 			}
+			// re-validate the destination immediately before writing to it: a path component
+			// could have been swapped for a symlink after this job was scheduled, or even while
+			// the dump above was running - the mv and chown below must never follow such a link
+			try {
+				FileDir::makeCorrectDir($data['destdir'], $customerdocroot);
+			} catch (Exception $e) {
+				$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'Export destination is unsafe, aborting export for security: ' . $e->getMessage());
+				FileDir::safe_exec('rm -rf ' . escapeshellarg($tmpdir));
+				return;
+			}
 			// move to destination directory
 			$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'shell> mv ' . escapeshellarg($export_file) . ' ' . escapeshellarg($data['destdir']));
 			FileDir::safe_exec('mv ' . escapeshellarg($export_file) . ' ' . escapeshellarg($data['destdir']));
@@ -229,11 +239,7 @@ class ExportCron extends FroxlorCron
 			FileDir::safe_exec('rm -rf ' . escapeshellarg($tmpdir));
 			// set owner to customer
 			$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'shell> chown -R ' . (int)$data['uid'] . ':' . (int)$data['gid'] . ' ' . escapeshellarg($data['destdir']));
-			if (is_link(rtrim($data['destdir'], '/'))) {
-				$cronlog->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'Export destination is a symlink, skipping chown for security: ' . $data['destdir']);
-			} else {
-				FileDir::safe_exec('chown -R ' . (int)$data['uid'] . ':' . (int)$data['gid'] . ' ' . escapeshellarg($data['destdir']));
-			}
+			FileDir::safe_exec('chown -R ' . (int)$data['uid'] . ':' . (int)$data['gid'] . ' ' . escapeshellarg($data['destdir']));
 		}
 	}
 }

@@ -68,6 +68,10 @@ class Mysqls extends ApiCommand implements ResourceEntity
 	 */
 	public function add()
 	{
+		if ($this->isAdmin() == false && Settings::IsInList('panel.customer_hide_options', 'mysql')) {
+			throw new Exception("You cannot access this resource", 405);
+		}
+
 		if (($this->getUserDetail('mysqls_used') < $this->getUserDetail('mysqls') || $this->getUserDetail('mysqls') == '-1') || $this->isAdmin()) {
 			// required parameters
 			$password = $this->getParam('mysql_password');

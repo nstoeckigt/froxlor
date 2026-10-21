@@ -239,21 +239,40 @@ if ($page == 'overview') {
 					}
 				}
 
+				// hint at rotating active api-keys instead of silently invalidating them
+				if (Settings::Get('api.enabled') == 1 && $userinfo['api_allowed'] == 1) {
+					$apikey_count_stmt = Database::prepare("
+						SELECT COUNT(*) AS `cnt` FROM `" . TABLE_API_KEYS . "`
+						WHERE `customerid` = :id AND (`valid_until` = -1 OR `valid_until` >= UNIX_TIMESTAMP())
+					");
+					$apikey_count = Database::pexecute_first($apikey_count_stmt, [
+						'id' => $userinfo['customerid']
+					])['cnt'];
+					if ($apikey_count > 0) {
+						Response::standardSuccess('changepassword.apikeys_hint', $apikey_count, [
+							'filename' => $filename,
+							'page' => 'apikeys'
+						]);
+					}
+				}
+
 				Response::redirectTo($filename);
 			}
 		} elseif (Request::post('send') == 'changetheme') {
 			if (Settings::Get('panel.allow_theme_change_customer') == 1) {
 				$theme = Validate::validate(Request::post('theme'), 'theme');
-				try {
-					Customers::getLocal($userinfo, [
-						'id' => $userinfo['customerid'],
-						'theme' => $theme
-					])->update();
-				} catch (Exception $e) {
-					Response::dynamicError($e->getMessage());
-				}
+				if (isset(UI::getThemes()[$theme])) {
+					try {
+						Customers::getLocal($userinfo, [
+							'id' => $userinfo['customerid'],
+							'theme' => $theme
+						])->update();
+					} catch (Exception $e) {
+						Response::dynamicError($e->getMessage());
+					}
 
-				$log->logAction(FroxlorLogger::USR_ACTION, LOG_NOTICE, "changed default theme to '" . $theme . "'");
+					$log->logAction(FroxlorLogger::USR_ACTION, LOG_NOTICE, "changed default theme to '" . $theme . "'");
+				}
 			}
 			Response::redirectTo($filename);
 		} elseif (Request::post('send') == 'changelanguage') {

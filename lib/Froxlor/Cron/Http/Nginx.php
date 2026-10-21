@@ -25,6 +25,7 @@
 
 namespace Froxlor\Cron\Http;
 
+use Exception;
 use Froxlor\Cron\Http\Php\PhpInterface;
 use Froxlor\Cron\TaskId;
 use Froxlor\Customer\Customer;
@@ -621,6 +622,12 @@ class Nginx extends HttpConfigBase
 		// avoid using any whitespaces
 		$domain['documentroot'] = trim($domain['documentroot']);
 
+		// defence in depth: never write a documentroot containing control characters into the vhost config
+		if (preg_match('/[\x00-\x1F\x7F]/', $domain['documentroot'])) {
+			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, $domain['domain'] . ' :: documentroot contains invalid control characters');
+			return '# invalid document-root/redirect-url for this domain, therefore no explicit vhost is being generated' . "\n";
+		}
+
 		// create ssl settings first since they are required for normal and redirect vhosts
 		if ($ssl_vhost === true && $domain['ssl'] == '1' && Settings::Get('system.use_ssl') == '1') {
 			$vhost_content .= "\n" . $this->composeSslSettings($domain) . "\n";
@@ -633,20 +640,31 @@ class Nginx extends HttpConfigBase
 
 		// if the documentroot is an URL we just redirect
 		if (preg_match('/^https?\:\/\//', $domain['documentroot'])) {
-			$possible_deactivated_webroot = $this->getWebroot($domain);
+			// documentroot is a redirect-target URL here, not a filesystem path - only call
+			// getWebroot() (which re-validates documentroot as a path) when its result is
+			// actually going to be used, i.e. for the deactivated-docroot fallback below
+			$possible_deactivated_webroot = '';
+			$this->deactivated = false;
+			if (($domain['deactivated'] == '1' || $domain['customer_deactivated'] == '1') && Settings::Get('system.deactivateddocroot') != '') {
+				$possible_deactivated_webroot = $this->getWebroot($domain);
+			}
 			if ($this->deactivated == false) {
-				$uri = $domain['documentroot'];
-				if (substr($uri, -1) == '/') {
-					$uri = substr($uri, 0, -1);
+				if (($ssl_vhost == false && $domain['ssl'] == '1' && $domain['ssl_redirect'] == '1') || Validate::validateUrl($domain['documentroot'])) {
+					$uri = $domain['documentroot'];
+					if (substr($uri, -1) == '/') {
+						$uri = substr($uri, 0, -1);
+					}
+
+					// Get domain's redirect code
+					$code = Domain::getDomainRedirectCode($domain['id']);
+
+					$vhost_content .= $this->getLogFiles($domain);
+					$vhost_content .= "\t" . 'location / {' . "\n";
+					$vhost_content .= "\t\t" . 'return ' . $code . ' ' . $uri . '$request_uri;' . "\n";
+					$vhost_content .= "\t" . '}' . "\n";
+				} else {
+					$vhost_content .= "\t" . 'return 500 "misconfigured redirect url";' . "\n";
 				}
-
-				// Get domain's redirect code
-				$code = Domain::getDomainRedirectCode($domain['id']);
-
-				$vhost_content .= $this->getLogFiles($domain);
-				$vhost_content .= "\t" . 'location / {' . "\n";
-				$vhost_content .= "\t\t" . 'return ' . $code . ' ' . $uri . '$request_uri;' . "\n";
-				$vhost_content .= "\t" . '}' . "\n";
 			} elseif (Settings::Get('system.deactivateddocroot') != '') {
 				$vhost_content .= $possible_deactivated_webroot;
 			}
@@ -824,7 +842,25 @@ class Nginx extends HttpConfigBase
 			$webroot_text .= "\t" . 'root     ' . FileDir::makeCorrectDir(Settings::Get('system.deactivateddocroot')) . ';' . "\n";
 			$this->deactivated = true;
 		} else {
-			$webroot_text .= "\t" . 'root     ' . FileDir::makeCorrectDir($domain['documentroot']) . ';' . "\n";
+			// re-validate at write-time: the stored documentroot was checked when it was
+			// set, but a customer-controlled path component could have been swapped for
+			// a symlink any time since then. this only applies to documentroots that are
+			// actually meant to live within the customer's home directory - an admin with
+			// change_serversettings is allowed to point documentroot at an absolute path
+			// outside of it (see Domains::add()/update()), which is a trusted, admin-only
+			// escape hatch with no customer-writable containment to protect
+			$customerroot_prefix = rtrim(preg_replace('#/+#', '/', $domain['customerroot']), '/') . '/';
+			if (substr(preg_replace('#/+#', '/', $domain['documentroot']), 0, strlen($customerroot_prefix)) == $customerroot_prefix) {
+				try {
+					$safe_documentroot = FileDir::makeCorrectDir($domain['documentroot'], $domain['customerroot']);
+				} catch (Exception $e) {
+					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'nginx::getWebroot: documentroot for "' . $domain['domain'] . '" is unsafe, falling back to customer home directory: ' . $e->getMessage());
+					$safe_documentroot = FileDir::makeCorrectDir($domain['customerroot']);
+				}
+			} else {
+				$safe_documentroot = FileDir::makeCorrectDir($domain['documentroot']);
+			}
+			$webroot_text .= "\t" . 'root     ' . $safe_documentroot . ';' . "\n";
 			$this->deactivated = false;
 		}
 

@@ -134,17 +134,18 @@ class DbManager
 					foreach ($mysql_access_host_array as $mysql_access_host) {
 						$mysql_access_host = trim($mysql_access_host);
 
-						if (!in_array($mysql_access_host, $users[$username]['hosts'])) {
-							// if this is a new host, use credentials from localhost, which should always exist
+						if (!isset($users[$username]['hosts'][$mysql_access_host])) {
+							// if this is a new host, use credentials from localhost (or any other existing host)
+							$host_data = $users[$username]['hosts']['localhost'] ?? reset($users[$username]['hosts']);
 							$password = [
-								'password' => $users[$username]['hosts']['localhost']['password'],
-								'plugin' => $users[$username]['hosts']['localhost']['plugin']
+								'password' => $host_data['password'],
+								'plugin' => $host_data['plugin']
 							];
 							$dbm->getManager()->grantPrivilegesTo($username, $password, $mysql_access_host, true);
 						}
 					}
 
-					foreach ($users[$username]['hosts'] as $mysql_access_host) {
+					foreach (array_keys($users[$username]['hosts']) as $mysql_access_host) {
 						if (!in_array($mysql_access_host, $mysql_access_host_array)) {
 							$dbm->getManager()->deleteUser($username, $mysql_access_host);
 						}
@@ -174,7 +175,7 @@ class DbManager
 	 * @return string|bool $username if successful or false of username is equal to the password
 	 * @throws Exception
 	 */
-	public function createDatabase(string $loginname = null, string $password = null, int $dbserver = 0, int $last_accnumber = 0, string $global_user = "")
+	public function createDatabase(?string $loginname = null, ?string $password = null, int $dbserver = 0, int $last_accnumber = 0, string $global_user = "")
 	{
 		Database::needRoot(true, $dbserver, false);
 

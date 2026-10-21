@@ -118,6 +118,7 @@ http {
 	tcp_nodelay on;
 	keepalive_timeout 65;
 	types_hash_max_size 2048;
+	client_max_body_size 16M;
 	# server_tokens off;
 
 	# server_names_hash_bucket_size 64;
@@ -2205,7 +2206,7 @@ ModuleControlsACLs insmod,rmmod allow user root
 ModuleControlsACLs lsmod allow user *
 
 #This is required only if you need to set IdentLookups on
-#LoadModule mod_ident.c
+LoadModule mod_ident.c
 
 LoadModule mod_ctrls_admin.c
 

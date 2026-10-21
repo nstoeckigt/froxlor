@@ -34,13 +34,19 @@ use Froxlor\UI\Response;
 class Validate
 {
 
-	const REGEX_DIR = '/^|(\/[\w-]+)+$/';
+	// empty string or a sequence of safe path characters (word chars, dots, slashes,
+	// hyphens); a bare '^' alternative previously made this match any input at all,
+	// and '..' is explicitly excluded to block directory traversal
+	const REGEX_DIR = '/^((?!\.\.)[\w.\/-])*$/D';
 
 	const REGEX_PORT = '/^(([1-9])|([1-9][0-9])|([1-9][0-9][0-9])|([1-9][0-9][0-9][0-9])|([1-5][0-9][0-9][0-9][0-9])|(6[0-4][0-9][0-9][0-9])|(65[0-4][0-9][0-9])|(655[0-2][0-9])|(6553[0-5]))$/Di';
 
 	const REGEX_CONF_TEXT = '/^[^\0]*$/';
 
 	const REGEX_DESC_TEXT = '/^[^\0\r\n<>]*$/';
+
+	// like REGEX_DESC_TEXT but allows newlines, for textarea fields (callers normalize \r\n to \n first)
+	const REGEX_DESC_TEXT_MULTILINE = '/^[^\0\r<>]*$/';
 
 	const REGEX_YYYY_MM_DD = '/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/';
 
@@ -140,8 +146,12 @@ class Validate
 				if (IPTools::is_ipv6($ip_cidr[0])) {
 					$cidr_range_max = 128;
 				}
-				if (strlen($ip_cidr[1]) <= 3 && in_array((int)$ip_cidr[1], array_values(range(1, $cidr_range_max)),
-						true) === false) {
+				// the strlen() <= 3 guard this used to have made the check a no-op for any
+				// CIDR suffix longer than 3 characters (e.g. "/12345") - such values passed
+				// through unvalidated and, downstream in IPTools::ip_in_range(), collapse to
+				// a netmask of 0 that matches every address, silently defeating an
+				// allowed_from IP restriction
+				if (in_array((int)$ip_cidr[1], array_values(range(1, $cidr_range_max)), true) === false) {
 					if ($return_bool) {
 						return false;
 					}
@@ -197,6 +207,11 @@ class Validate
 	 */
 	public static function validateUrl(string $url, bool $allow_private_ip = false): bool
 	{
+		// reject raw control characters before parse_url() can mask them (e.g. to '_')
+		if (preg_match('/[\x00-\x1F\x7F]/', $url)) {
+			return false;
+		}
+
 		if (strtolower(substr($url, 0, 7)) != "http://" && strtolower(substr($url, 0, 8)) != "https://") {
 			$url = 'http://' . $url;
 		}
@@ -216,6 +231,29 @@ class Validate
 		$host = $parts['host'];
 		if (substr($host, 0, 1) == '[' && substr($host, -1) == ']') {
 			$host = substr($host, 1, -1);
+		}
+
+		foreach (['path', 'query', 'fragment', 'user', 'pass'] as $part) {
+			if (!empty($parts[$part])) {
+				$decoded = rawurldecode($parts[$part]);
+				if (preg_match('/[\r\n]|%0a|%0d/i', $parts[$part])) {
+					return false;
+				}
+				if (preg_match('/[\r\n]/', $decoded)) {
+					return false;
+				}
+				// no control chars
+				if (preg_match('/[\x00-\x1F\x7F]/', $decoded)) {
+					return false;
+				}
+				if (!preg_match('/^[a-zA-Z0-9._~!$&\'()*+,;=:@%\/?-]*$/', $parts[$part])) {
+					return false;
+				}
+				// anti traversal
+				if (strstr($decoded, '..') !== false || strstr($parts[$part], '..') !== false) {
+					return false;
+				}
+			}
 		}
 
 		$opts = FILTER_FLAG_IPV4 | FILTER_FLAG_NO_RES_RANGE | FILTER_FLAG_NO_PRIV_RANGE;
@@ -342,7 +380,7 @@ class Validate
 
 			$interval_parts = explode(' ', $interval);
 
-			if (count($interval_parts) == 2 && preg_match('/[0-9]+/',
+			if (count($interval_parts) == 2 && preg_match('/^[0-9]+$/',
 					$interval_parts[0]) && in_array(strtoupper($interval_parts[1]), $valid_expr)) {
 				return true;
 			}

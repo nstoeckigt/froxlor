@@ -90,7 +90,20 @@ class FileDir
 			sort($subdirs);
 			foreach ($subdirs as $sdir) {
 				if (!is_dir($sdir)) {
-					$sdir = self::makeCorrectDir($sdir);
+					// re-validate right before mkdir/chown -R: a customer-controlled path
+					// component could have been swapped for a symlink after $dirToCreate was
+					// first stored/validated. Skip only this component if it now escapes
+					// $homeDir - do not touch it, do not abort sibling directories.
+					if ($within_homedir) {
+						try {
+							$sdir = self::makeCorrectDir($sdir, $homeDir);
+						} catch (Exception $e) {
+							FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'mkDirWithCorrectOwnership: "' . $sdir . '" is unsafe, skipping mkdir/chown: ' . $e->getMessage());
+							continue;
+						}
+					} else {
+						$sdir = self::makeCorrectDir($sdir);
+					}
 					self::safe_exec('mkdir -p ' . escapeshellarg($sdir));
 					// place index
 					if ($placeindex) {
@@ -132,7 +145,14 @@ class FileDir
 			// by checking each folder for being a symlink and whether it targets
 			// the customers homedir or points outside of it
 			if (!empty($fixed_homedir)) {
-				$to_check = explode("/", substr($dir, strlen($fixed_homedir) + 1), -1);
+				// normalize to exactly one trailing slash and no double-slashes, regardless of
+				// what the caller passed in - the offset below relies on this being unambiguous
+				$fixed_homedir = rtrim(preg_replace('#/+#', '/', $fixed_homedir), '/') . '/';
+				// also collapse double-slashes in $dir itself so re-validating an already
+				// normalized path (e.g. cron re-checking a stored destination) can't shift
+				// the split point and skip a path component
+				$dir_to_check = preg_replace('#/+#', '/', $dir);
+				$to_check = explode("/", substr($dir_to_check, strlen($fixed_homedir)), -1);
 				$check_dir = substr($fixed_homedir, 0, -1);
 				// Symlink check
 				foreach ($to_check as $sub_dir) {
@@ -146,13 +166,18 @@ class FileDir
 							// relative directory, prepend link_dir
 							$check_dir = $link_dir . '/' . $check_dir;
 						}
+						// resolve any '..'/'.' segments lexically (no filesystem access, so this
+						// also works for dangling targets) - otherwise a symlink target like
+						// '../../other_customer' would still lexically start with $fixed_homedir
+						// and slip past the prefix check below
+						$check_dir = self::resolveDotSegments($check_dir);
 						if (substr($check_dir, 0, strlen($fixed_homedir)) != $fixed_homedir) {
 							throw new Exception("Found symlink pointing outside of customer home directory: " . substr($original_target, strlen($fixed_homedir)));
 						}
 					}
 				}
 				// check for the path to be within the given homedir
-				if (substr($dir, 0, strlen($fixed_homedir)) != $fixed_homedir) {
+				if (substr($dir_to_check, 0, strlen($fixed_homedir)) != $fixed_homedir) {
 					throw new Exception("Target path not within the required customer home directory");
 				}
 			}
@@ -160,6 +185,32 @@ class FileDir
 			return self::makeSecurePath($dir);
 		}
 		throw new Exception("Cannot validate directory in " . __FUNCTION__ . " which is very dangerous.");
+	}
+
+	/**
+	 * Lexically resolves '..' and '.' segments in a path without touching the filesystem
+	 * (so it also works for symlink targets that don't exist (yet)). Unlike realpath()
+	 * this is a pure string operation and never returns false.
+	 *
+	 * @param string $path
+	 *
+	 * @return string the resolved path
+	 */
+	private static function resolveDotSegments(string $path): string
+	{
+		$absolute = substr($path, 0, 1) === '/';
+		$resolved = [];
+		foreach (explode('/', $path) as $part) {
+			if ($part === '' || $part === '.') {
+				continue;
+			}
+			if ($part === '..') {
+				array_pop($resolved);
+				continue;
+			}
+			$resolved[] = $part;
+		}
+		return ($absolute ? '/' : '') . implode('/', $resolved);
 	}
 
 	/**
@@ -397,8 +448,14 @@ class FileDir
 		// by checking each folder and the file for being a symlink and whether it targets
 		// the customers homedir or points outside of it
 		if (!empty($fixed_homedir)) {
-			$to_check = explode("/", substr($filename, strlen(self::makeCorrectDir($fixed_homedir))), -1);
-			$check_dir = substr($fixed_homedir, -1) == '/' ? substr($fixed_homedir, 0, -1) : $fixed_homedir;
+			// normalize once so every check below (offset calculation, symlink-walk base,
+			// and the prefix comparisons) agrees on the same string - a $fixed_homedir with
+			// e.g. a legacy double-slash would otherwise mismatch a normalized $filename and
+			// reject an entirely legitimate path
+			$fixed_homedir = rtrim(preg_replace('#/+#', '/', self::makeCorrectDir($fixed_homedir)), '/') . '/';
+			$filename_to_check = preg_replace('#/+#', '/', $filename);
+			$to_check = explode("/", substr($filename_to_check, strlen($fixed_homedir)), -1);
+			$check_dir = substr($fixed_homedir, 0, -1);
 			// Symlink check
 			foreach ($to_check as $sub_dir) {
 				$check_dir .= '/' . $sub_dir;
@@ -411,21 +468,33 @@ class FileDir
 						// relative directory, prepend link_dir
 						$check_dir = $link_dir . '/' . $check_dir;
 					}
+					// resolve any '..'/'.' segments lexically before the prefix check - otherwise
+					// a relative symlink target like '../../other_customer' would still lexically
+					// start with $fixed_homedir (since it's joined onto $link_dir first) and slip
+					// past the check below; see makeCorrectDir() for the same fix
+					$check_dir = self::resolveDotSegments($check_dir);
 					if (substr($check_dir, 0, strlen($fixed_homedir)) != $fixed_homedir) {
 						throw new Exception("Found symlink pointing outside of customer home directory: " . substr($original_target, strlen($fixed_homedir)));
 					}
 				}
 			}
 			// check for the path to be within the given homedir
-			if (substr($filename, 0, strlen($fixed_homedir)) != $fixed_homedir) {
+			if (substr($filename_to_check, 0, strlen($fixed_homedir)) != $fixed_homedir) {
 				throw new Exception("Target path/file not within the required customer home directory");
 			}
-			// check whether file is symlink itself
+			// check whether file is symlink itself - only validate where it points to, but keep
+			// returning the path of the link (callers like 'ln -fTs' or unlink() need the link
+			// itself, not its target)
 			if (is_link($filename)) {
-				$filename = readlink($filename);
-				$check_dir = FileDir::makeCorrectDir(dirname($filename), $fixed_homedir);
+				$link_target = readlink($filename);
+				if (substr($link_target, 0, 1) != '/') {
+					// relative target, resolve against the directory containing the link
+					$link_target = dirname($filename) . '/' . $link_target;
+				}
+				$link_target = self::resolveDotSegments($link_target);
+				$check_dir = FileDir::makeCorrectDir(dirname($link_target), $fixed_homedir);
 				if (substr($check_dir, 0, strlen($fixed_homedir)) != $fixed_homedir) {
-					throw new Exception("Found symlink pointing outside of customer home directory: " . substr($filename, strlen($fixed_homedir)));
+					throw new Exception("Found symlink pointing outside of customer home directory: " . substr($link_target, strlen($fixed_homedir)));
 				}
 			}
 		}

@@ -60,7 +60,7 @@ class DbManagerMySQL
 	 *
 	 * @param string|null $dbname
 	 */
-	public function createDatabase(string $dbname = null)
+	public function createDatabase(?string $dbname = null)
 	{
 		Database::query("CREATE DATABASE `" . $dbname . "`");
 	}
@@ -80,7 +80,7 @@ class DbManagerMySQL
 	 *            optional, whether the given user will have access to all databases starting with the username, default false
 	 * @throws \Exception
 	 */
-	public function grantPrivilegesTo(string $username, $password, string $access_host = null, bool $p_encrypted = false, bool $update = false, bool $grant_access_prefix = false)
+	public function grantPrivilegesTo(string $username, $password, ?string $access_host = null, bool $p_encrypted = false, bool $update = false, bool $grant_access_prefix = false)
 	{
 		// this is required for mysql8
 		$pwd_plugin = 'caching_sha2_password';
@@ -167,7 +167,11 @@ class DbManagerMySQL
 		} else {
 			$drop_stmt = Database::prepare("DROP USER IF EXISTS :dbname@:host");
 		}
-		$rev_stmt = Database::prepare("REVOKE ALL PRIVILEGES ON `" . $dbname . "`.* FROM :guser@:host;");
+		// Database names in GRANT/REVOKE patterns treat '_' as a wildcard, so use the
+		// same escaped form as grantPrivilegesTo()/grantCreateToDb() to match grants
+		// for the literal database name (e.g. test1\_abc123 instead of test1_abc123).
+		$escaped_dbname = str_replace('_', '\\_', $dbname);
+		$rev_stmt = Database::prepare("REVOKE ALL PRIVILEGES ON `" . $escaped_dbname . "`.* FROM :guser@:host;");
 		while ($host = $host_res_stmt->fetch(PDO::FETCH_ASSOC)) {
 			Database::pexecute($drop_stmt, [
 				'dbname' => $dbname,

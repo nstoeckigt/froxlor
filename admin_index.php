@@ -242,21 +242,41 @@ if ($page == 'overview') {
 					Response::dynamicError($e->getMessage());
 				}
 				$log->logAction(FroxlorLogger::ADM_ACTION, LOG_NOTICE, 'changed password');
+
+				// hint at rotating active api-keys instead of silently invalidating them
+				if (Settings::Get('api.enabled') == 1 && $userinfo['api_allowed'] == 1) {
+					$apikey_count_stmt = Database::prepare("
+						SELECT COUNT(*) AS `cnt` FROM `" . TABLE_API_KEYS . "`
+						WHERE `adminid` = :id AND `customerid` = '0' AND (`valid_until` = -1 OR `valid_until` >= UNIX_TIMESTAMP())
+					");
+					$apikey_count = Database::pexecute_first($apikey_count_stmt, [
+						'id' => $userinfo['adminid']
+					])['cnt'];
+					if ($apikey_count > 0) {
+						Response::standardSuccess('changepassword.apikeys_hint', $apikey_count, [
+							'filename' => $filename,
+							'page' => 'apikeys'
+						]);
+					}
+				}
+
 				Response::redirectTo($filename);
 			}
 		} elseif (Request::post('send') == 'changetheme') {
 			if (Settings::Get('panel.allow_theme_change_admin') == 1) {
 				$theme = Validate::validate(Request::post('theme'), 'theme');
-				try {
-					Admins::getLocal($userinfo, [
-						'id' => $userinfo['adminid'],
-						'theme' => $theme
-					])->update();
-				} catch (Exception $e) {
-					Response::dynamicError($e->getMessage());
-				}
+				if (isset(UI::getThemes()[$theme])) {
+					try {
+						Admins::getLocal($userinfo, [
+							'id' => $userinfo['adminid'],
+							'theme' => $theme
+						])->update();
+					} catch (Exception $e) {
+						Response::dynamicError($e->getMessage());
+					}
 
-				$log->logAction(FroxlorLogger::ADM_ACTION, LOG_NOTICE, "changed his/her theme to '" . $theme . "'");
+					$log->logAction(FroxlorLogger::ADM_ACTION, LOG_NOTICE, "changed his/her theme to '" . $theme . "'");
+				}
 			}
 			Response::redirectTo($filename);
 		} elseif (Request::post('send') == 'changelanguage') {

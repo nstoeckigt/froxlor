@@ -144,7 +144,11 @@ class Fcgid
 	 */
 	public function getStarterFile()
 	{
-		$starter_filename = FileDir::makeCorrectFile($this->getConfigDir() . '/php-fcgi-starter');
+		// the customer owns $configdir's contents (though not $configdir itself), so a filename
+		// inside it could have been replaced with a symlink since the last run - re-validate so
+		// the fopen('w')/chown in createStarterFile() can't follow it outside of $configdir
+		$configdir = $this->getConfigDir();
+		$starter_filename = FileDir::makeCorrectFile($configdir . '/php-fcgi-starter', $configdir);
 		return $starter_filename;
 	}
 
@@ -269,7 +273,9 @@ class Fcgid
 	 */
 	public function getIniFile()
 	{
-		$phpini_filename = FileDir::makeCorrectFile($this->getConfigDir() . '/php.ini');
+		// see getStarterFile() - $configdir's contents are customer-writable
+		$configdir = $this->getConfigDir();
+		$phpini_filename = FileDir::makeCorrectFile($configdir . '/php.ini', $configdir);
 		return $phpini_filename;
 	}
 }

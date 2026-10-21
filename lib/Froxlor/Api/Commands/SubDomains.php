@@ -507,6 +507,8 @@ class SubDomains extends ApiCommand implements ResourceEntity
 				$result['ipsandports'] = $this->getIpsForDomain($result['id']);
 			}
 			$result['domain_hascert'] = $this->getHasCertValueForDomain((int)$result['id'], (int)$result['parentdomainid']);
+			// unset sensitive data
+			unset($result['dkim_privkey']);
 			$this->logger()->logAction($this->isAdmin() ? FroxlorLogger::ADM_ACTION : FroxlorLogger::USR_ACTION, LOG_INFO, "[API] get subdomain '" . $result['domain'] . "'");
 			return $this->response($result);
 		}
@@ -573,6 +575,14 @@ class SubDomains extends ApiCommand implements ResourceEntity
 		// path mode: regular directory path
 		$path = Validate::validate($path, 'path', Validate::REGEX_DIR, '', [], true);
 
+		// $path may already be an absolute, previously-resolved documentroot - e.g.
+		// update() defaults to the currently stored documentroot when no new path is
+		// given. Strip the customer's own homedir prefix so it isn't prepended a second
+		// time below, which would otherwise duplicate it on every no-op update (#1415)
+		if (!empty($customer['documentroot']) && strpos($path, $customer['documentroot']) === 0) {
+			$path = substr($path, strlen($customer['documentroot']));
+		}
+
 		// default path if empty and setting active
 		if (($path === '' || $path === '/') && Settings::Get('system.documentroot_use_default_value') == 1) {
 			return FileDir::makeCorrectDir($customer['documentroot'] . '/' . $completedomain, $customer['documentroot']);
@@ -580,6 +590,10 @@ class SubDomains extends ApiCommand implements ResourceEntity
 		// check if path does not contain a colon
 		if (strpos($path, ':') !== false) {
 			Response::standardError('pathmaynotcontaincolon', '', true);
+		}
+
+		if (file_exists($customer['documentroot'] . '/' . $path) && !is_dir($customer['documentroot'] . '/' . $path)) {
+			Response::standardError('pathexistsasfile', '', true);
 		}
 
 		return FileDir::makeCorrectDir($customer['documentroot'] . '/' . $path, $customer['documentroot']);
@@ -1024,6 +1038,8 @@ class SubDomains extends ApiCommand implements ResourceEntity
 				$row['ipsandports'] = $this->getIpsForDomain($row['id']);
 			}
 			$row['domain_hascert'] = $this->getHasCertValueForDomain((int)$row['id'], (int)$row['parentdomainid']);
+			// unset sensitive data
+			unset($row['dkim_privkey']);
 			$result[] = $row;
 		}
 		return $this->response([
@@ -1160,6 +1176,15 @@ class SubDomains extends ApiCommand implements ResourceEntity
 
 		// get needed customer info to reduce the subdomain-usage-counter by one
 		$customer = $this->getCustomerData();
+
+		// SubDomains.get() also returns main domains (parentdomainid = 0) owned by the customer
+		// (needed to show e.g. domain details), but customers must never be able to delete their
+		// main domain through here - it's not theirs to delete, an admin/reseller assigned it and
+		// owns the domains_used quota it counts against; the UI already blocks this
+		// (customer_domains.php: domains_cantdeletemaindomain), enforce it here too
+		if (!$this->isAdmin() && $result['parentdomainid'] == '0') {
+			Response::standardError('domains_cantdeletemaindomain', '', true);
+		}
 
 		if (!$this->isAdmin() && $result['caneditdomain'] == 0) {
 			throw new Exception("You cannot edit this resource", 405);

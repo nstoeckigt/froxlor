@@ -249,6 +249,45 @@ class MysqlsTest extends TestCase
 
 	/**
 	 *
+	 * @depends testCustomerMysqlsAdd
+	 */
+	public function testStoreSettingMysqlAccessHost()
+	{
+		// this settings test is here because it requires existing databases to correct their mysql users
+		$fielddata = [
+			'label' => 'serversettings.mysql_access_host',
+			'settinggroup' => 'system',
+			'varname' => 'mysql_access_host'
+		];
+		$mysql_access_hosts = Settings::Get('system.mysql_access_host');
+
+		// add a new host, existing hosts must be kept
+		Store::storeSettingMysqlAccessHost('system_system_mysql_access_host', $fielddata, $mysql_access_hosts . ',10.0.0.11');
+		$hosts = $this->getMysqlUserHosts('test1sql1');
+		$this->assertContains('10.0.0.11', $hosts);
+		$this->assertContains('localhost', $hosts);
+
+		// remove it again
+		Store::storeSettingMysqlAccessHost('system_system_mysql_access_host', $fielddata, $mysql_access_hosts);
+		$hosts = $this->getMysqlUserHosts('test1sql1');
+		$this->assertNotContains('10.0.0.11', $hosts);
+		$this->assertContains('localhost', $hosts);
+	}
+
+	private function getMysqlUserHosts(string $username): array
+	{
+		Database::needRoot(true);
+		$sel_stmt = Database::prepare("SELECT `Host` FROM mysql.user WHERE `User` = :usr");
+		Database::pexecute($sel_stmt, [
+			'usr' => $username
+		]);
+		$hosts = $sel_stmt->fetchAll(\PDO::FETCH_COLUMN);
+		Database::needRoot(false);
+		return $hosts;
+	}
+
+	/**
+	 *
 	 * @depends testCustomerMysqlsList
 	 */
 	public function testCustomerMysqlsDelete()
@@ -342,23 +381,29 @@ class MysqlsTest extends TestCase
 			'password' => $testdata['hosts']['localhost']['password'],
 			'plugin' => $testdata['hosts']['localhost']['plugin']
 		];
-		$dbm->getManager()->grantPrivilegesTo('froxlor010', $password, '10.0.0.10', true);
+		try {
+			$dbm->getManager()->grantPrivilegesTo('froxlor010', $password, '10.0.0.10', true);
 
-		// select all entries from mysql.user for froxlor010 to compare password-hashes
-		$sel_stmt = Database::prepare("SELECT * FROM mysql.user WHERE `User` = :usr");
-		Database::pexecute($sel_stmt, [
-			'usr' => 'froxlor010'
-		]);
-		$results = $sel_stmt->fetchAll(\PDO::FETCH_ASSOC);
-		foreach ($results as $user) {
-			if ($user['Host'] == '10.0.0.10') {
-				// user 'froxlor010'@'10.0.0.10' has been added after we ran
-				// $dbm->getManager()->getAllSqlUsers(false) so it cannot be part of the array
-				$this->assertArrayNotHasKey($user['Host'], $testdata['hosts']);
-			} else {
-				$passwd = $user['Password'] ?? $user['authentication_string'];
-				$this->assertEquals($testdata['hosts'][$user['Host']]['password'], $passwd, "Wrong authentication_string for user '" . $user['User'] . "'@'" . $user['Host'] . "'");
+			// select all entries from mysql.user for froxlor010 to compare password-hashes
+			$sel_stmt = Database::prepare("SELECT * FROM mysql.user WHERE `User` = :usr");
+			Database::pexecute($sel_stmt, [
+				'usr' => 'froxlor010'
+			]);
+			$results = $sel_stmt->fetchAll(\PDO::FETCH_ASSOC);
+			foreach ($results as $user) {
+				if ($user['Host'] == '10.0.0.10') {
+					// user 'froxlor010'@'10.0.0.10' has been added after we ran
+					// $dbm->getManager()->getAllSqlUsers(false) so it cannot be part of the array
+					$this->assertArrayNotHasKey($user['Host'], $testdata['hosts']);
+				} else {
+					$passwd = $user['Password'] ?? $user['authentication_string'];
+					$this->assertEquals($testdata['hosts'][$user['Host']]['password'], $passwd, "Wrong authentication_string for user '" . $user['User'] . "'@'" . $user['Host'] . "'");
+				}
 			}
+		} finally {
+			// This test creates a temporary remote-host grant; remove it so later
+			// runs do not see stale froxlor010@10.0.0.10 entries in mysql.user/db.
+			Database::query("DROP USER IF EXISTS froxlor010@10.0.0.10;");
 		}
 	}
 }

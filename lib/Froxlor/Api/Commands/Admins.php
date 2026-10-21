@@ -34,6 +34,7 @@ use Froxlor\Idna\IdnaWrapper;
 use Froxlor\Language;
 use Froxlor\Settings;
 use Froxlor\System\Crypt;
+use Froxlor\UI\Panel\UI;
 use Froxlor\UI\Response;
 use Froxlor\User;
 use Froxlor\Validate\Validate;
@@ -104,6 +105,10 @@ class Admins extends ApiCommand implements ResourceEntity
 			Database::pexecute($result_stmt, $query_fields, true, true);
 			$result = [];
 			while ($row = $result_stmt->fetch(PDO::FETCH_ASSOC)) {
+				// unset sensitive data
+				unset($row['password']);
+				unset($row['data_2fa']);
+
 				$result[] = $row;
 			}
 			return $this->response([
@@ -271,6 +276,11 @@ class Admins extends ApiCommand implements ResourceEntity
 				$password = Crypt::validatePassword($password, true);
 			}
 
+			// verify ip-address ids are numeric values only
+			if (is_array($ipaddress)) {
+				$ipaddress = array_filter($ipaddress, 'is_numeric');
+			}
+
 			$diskspace *= 1024;
 			$traffic *= 1024 * 1024;
 
@@ -355,7 +365,9 @@ class Admins extends ApiCommand implements ResourceEntity
 					'quota' => $email_quota,
 					'ftps' => $ftps,
 					'mysqls' => $mysqls,
-					'ip' => empty($ipaddress) ? "" : (is_array($ipaddress) && $ipaddress > 0 ? json_encode($ipaddress) : -1),
+					'ip' => empty($ipaddress) ? "" : (is_array($ipaddress) && count($ipaddress) > 0
+						? json_encode(array_map('intval', $ipaddress))
+						: -1),
 					'theme' => $_theme,
 					'custom_notes' => $custom_notes,
 					'custom_notes_show' => $custom_notes_show
@@ -423,6 +435,16 @@ class Admins extends ApiCommand implements ResourceEntity
 		$ln_optional = $id > 0;
 		$loginname = $this->getParam('loginname', $ln_optional, '');
 
+		// a reseller (no change_serversettings) may only fetch their own record. Reject the
+		// request if either identifier that was actually supplied does not match their own
+		// identity - a mismatched id paired with the caller's own loginname (or vice versa)
+		// used to pass this gate on the OR below, and the query afterwards is driven by id
+		// alone, which let a reseller read any other admin's full row by id
+		if ($this->isAdmin() && $this->getUserDetail('change_serversettings') != 1
+			&& (($id > 0 && $id != $this->getUserDetail('adminid')) || (!empty($loginname) && $loginname != $this->getUserDetail('loginname')))) {
+			throw new Exception("Not allowed to execute given command.", 403);
+		}
+
 		if ($this->isAdmin() && ($this->getUserDetail('change_serversettings') == 1 || ($this->getUserDetail('adminid') == $id || $this->getUserDetail('loginname') == $loginname))) {
 			$result_stmt = Database::prepare("
 				SELECT * FROM `" . TABLE_PANEL_ADMINS . "`
@@ -432,6 +454,11 @@ class Admins extends ApiCommand implements ResourceEntity
 			];
 			$result = Database::pexecute_first($result_stmt, $params, true, true);
 			if ($result) {
+				if (!$this->isInternal()) {
+					// unset sensitive data
+					unset($result['password']);
+					unset($result['data_2fa']);
+				}
 				$this->logger()->logAction(FroxlorLogger::ADM_ACTION, LOG_INFO, "[API] get admin '" . $result['loginname'] . "'");
 				return $this->response($result);
 			}
@@ -536,7 +563,7 @@ class Admins extends ApiCommand implements ResourceEntity
 			$result = $this->apiCall('Admins.get', [
 				'id' => $id,
 				'loginname' => $loginname
-			]);
+			], true);
 			$id = $result['adminid'];
 
 			if ($this->getUserDetail('change_serversettings') == 1 || $result['adminid'] == $this->getUserDetail('adminid')) {
@@ -606,7 +633,12 @@ class Admins extends ApiCommand implements ResourceEntity
 					$def_language = Settings::Get('panel.standardlanguage');
 				}
 				$custom_notes = Validate::validate(str_replace("\r\n", "\n", $custom_notes ?? ""), 'custom_notes', Validate::REGEX_CONF_TEXT, '', [], true);
+				// only allow known, installed themes - the value is rendered unescaped in the admin
+				// listing's optional Theme column, so anything else must never reach the DB
 				$theme = Validate::validate($theme, 'theme', '', '', [], true);
+				if (!empty($theme) && !isset(UI::getThemes()[$theme])) {
+					$theme = '';
+				}
 				$password = Validate::validate($password, 'password', '', '', [], true);
 
 				if (Settings::Get('system.mail_quota_enabled') != '1') {
@@ -615,6 +647,10 @@ class Admins extends ApiCommand implements ResourceEntity
 
 				if (empty($theme)) {
 					$theme = Settings::Get('panel.default_theme');
+				}
+
+				if (is_array($ipaddress)) {
+					$ipaddress = array_filter($ipaddress, 'is_numeric');
 				}
 
 				if (empty(trim($name))) {
@@ -726,7 +762,9 @@ class Admins extends ApiCommand implements ResourceEntity
 						'quota' => $email_quota,
 						'ftps' => $ftps,
 						'mysqls' => $mysqls,
-						'ip' => empty($ipaddress) ? "" : (is_array($ipaddress) && $ipaddress > 0 ? json_encode($ipaddress) : -1),
+						'ip' => empty($ipaddress) ? "" : (is_array($ipaddress) && count($ipaddress) > 0
+							? json_encode(array_map('intval', $ipaddress))
+							: -1),
 						'deactivated' => $deactivated,
 						'custom_notes' => $custom_notes,
 						'custom_notes_show' => $custom_notes_show,
@@ -765,6 +803,20 @@ class Admins extends ApiCommand implements ResourceEntity
 					");
 					Database::pexecute($upd_stmt, $upd_data, true, true);
 					$this->logger()->logAction(FroxlorLogger::ADM_ACTION, LOG_NOTICE, "[API] edited admin '" . $result['loginname'] . "'");
+
+					if ($password != $result['password']) {
+						// password has been changed - purge 2fa "remember this device" tokens so a
+						// credential rotation actually locks out anyone holding a surviving cookie.
+						// api-keys are intentionally left untouched here; the UI hints at rotating them instead.
+						// guarded by db_version since the `admin` column might not exist yet if this
+						// code has been deployed but the db update hasn't run yet
+						if (Settings::Get('panel.db_version') >= 202608210) {
+							$del_stmt = Database::prepare("DELETE FROM `" . TABLE_PANEL_2FA_TOKENS . "` WHERE `userid` = :id AND `admin` = '1'");
+							Database::pexecute($del_stmt, [
+								'id' => $id
+							], true, true);
+						}
+					}
 
 					// get all admin-data for return-array
 					$result = $this->apiCall('Admins.get', [

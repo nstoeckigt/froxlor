@@ -30,6 +30,7 @@ namespace Froxlor\Cron\Traffic;
  * @author        Froxlor team <team@froxlor.org> (2010-)
  */
 
+use Exception;
 use Froxlor\Cron\Forkable;
 use Froxlor\Cron\FroxlorCron;
 use Froxlor\Database\Database;
@@ -189,9 +190,9 @@ class TrafficCron extends FroxlorCron
 					if ($statsTool != 'awstats') {
 						foreach ($speciallogfile_domainlist[$row['customerid']] as $domainid => $domain) {
 							if ($statsTool == 'goaccess') {
-								$httptraffic += floatval(self::callGoaccessGetTraffic($row['customerid'], $row['loginname'] . '-' . $domain, $row['documentroot'] . '/goaccess/' . $domain . '/', $domain, ['month' => $current_month_short, 'year' => $current_year], $current_stamp));
+								$httptraffic += floatval(self::callGoaccessGetTraffic($row['customerid'], $row['loginname'] . '-' . $domain, $row['documentroot'] . '/goaccess/' . $domain . '/', $domain, ['month' => $current_month_short, 'year' => $current_year], $current_stamp, $row['documentroot']));
 							} else {
-								$httptraffic += floatval(self::callWebalizerGetTraffic($row['loginname'] . '-' . $domain, $row['documentroot'] . '/webalizer/' . $domain . '/', $domain, $domainlist[$row['customerid']]));
+								$httptraffic += floatval(self::callWebalizerGetTraffic($row['loginname'] . '-' . $domain, $row['documentroot'] . '/webalizer/' . $domain . '/', $domain, $domainlist[$row['customerid']], $row['documentroot']));
 							}
 							// kind of a keep-alive-call as this unsets the link which leads to a new connection to the database
 							Database::needRoot();
@@ -206,11 +207,11 @@ class TrafficCron extends FroxlorCron
 				// will iterate through all customer-domains and the awstats-configs
 				// know the logfile-name, #246
 				if ($statsTool == 'awstats') {
-					$httptraffic += floatval(self::callAwstatsGetTraffic($row['customerid'], $row['documentroot'] . '/awstats/', $domainlist[$row['customerid']], $current_stamp));
+					$httptraffic += floatval(self::callAwstatsGetTraffic($row['customerid'], $row['documentroot'] . '/awstats/', $domainlist[$row['customerid']], $current_stamp, $row['documentroot']));
 				} elseif ($statsTool == 'goaccess') {
-					$httptraffic += floatval(self::callGoaccessGetTraffic($row['customerid'], $row['loginname'], $row['documentroot'] . '/goaccess/', $caption, ['month' => $current_month_short, 'year' => $current_year], $current_stamp));
+					$httptraffic += floatval(self::callGoaccessGetTraffic($row['customerid'], $row['loginname'], $row['documentroot'] . '/goaccess/', $caption, ['month' => $current_month_short, 'year' => $current_year], $current_stamp, $row['documentroot']));
 				} else {
-					$httptraffic += floatval(self::callWebalizerGetTraffic($row['loginname'], $row['documentroot'] . '/webalizer/', $caption, $domainlist[$row['customerid']]));
+					$httptraffic += floatval(self::callWebalizerGetTraffic($row['loginname'], $row['documentroot'] . '/webalizer/', $caption, $domainlist[$row['customerid']], $row['documentroot']));
 				}
 				// kind of a keep-alive-call as this unsets the link which leads to a new connection to the database
 				Database::needRoot();
@@ -511,7 +512,15 @@ class TrafficCron extends FroxlorCron
 				}
 
 				while ($row_quota = $result_quota_stmt->fetch(PDO::FETCH_ASSOC)) {
-					$quotafile = "" . $row_quota['homedir'] . ".ftpquota";
+					// re-validate: the ftp-users homedir was contained when it was set, but a
+					// customer-controlled path component could have been swapped for a symlink
+					// since then - fopen()+chown() below would otherwise follow it
+					try {
+						$quotafile = FileDir::makeCorrectFile($row_quota['homedir'] . '.ftpquota', $row['documentroot']);
+					} catch (Exception $e) {
+						FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::pureftpd-quota: homedir "' . $row_quota['homedir'] . '" is unsafe, skipping: ' . $e->getMessage());
+						continue;
+					}
 					$fh = fopen($quotafile, 'w');
 					$stringdata = "0 " . $current_diskspace['all'] * 1024 . "";
 					fwrite($fh, $stringdata);
@@ -591,16 +600,25 @@ class TrafficCron extends FroxlorCron
 	 * @param string $caption Caption for webalizer output
 	 * @param array $monthyear_arr
 	 * @param int $current_stamp
+	 * @param string $fixed_homedir customer homedir, to re-validate $outputdir is still contained in it
 	 *
 	 * @return int Used traffic
 	 */
-	private static function callGoaccessGetTraffic($customerid, $logfile, $outputdir, $caption, array $monthyear_arr = [], int $current_stamp = 0)
+	private static function callGoaccessGetTraffic($customerid, $logfile, $outputdir, $caption, array $monthyear_arr = [], int $current_stamp = 0, string $fixed_homedir = '')
 	{
 		$returnval = 0;
 
 		$logfile = FileDir::makeCorrectFile(Settings::Get('system.logfiles_directory') . $logfile . '-access.log');
 		if (file_exists($logfile)) {
-			$outputdir = FileDir::makeCorrectDir($outputdir);
+			// re-validate: the customer-controlled 'goaccess' folder inside the documentroot
+			// could have been swapped for a symlink since it was last checked - mkdir/goaccess
+			// below would otherwise follow it and write as root outside the customer's homedir
+			try {
+				$outputdir = FileDir::makeCorrectDir($outputdir, $fixed_homedir);
+			} catch (Exception $e) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::goaccess: outputdir "' . $outputdir . '" is unsafe, skipping: ' . $e->getMessage());
+				return $returnval;
+			}
 			if (!file_exists($outputdir)) {
 				FileDir::safe_exec('mkdir -p ' . escapeshellarg($outputdir));
 			}
@@ -669,10 +687,11 @@ class TrafficCron extends FroxlorCron
 	 * @param string $outputdir Place where stats should be build
 	 * @param string $caption Caption for webalizer output
 	 * @param array $usersdomainlist
+	 * @param string $fixed_homedir customer homedir, to re-validate $outputdir is still contained in it
 	 *
 	 * @return float Used traffic
 	 */
-	private static function callWebalizerGetTraffic($logfile, $outputdir, $caption, array $usersdomainlist = [])
+	private static function callWebalizerGetTraffic($logfile, $outputdir, $caption, array $usersdomainlist = [], string $fixed_homedir = '')
 	{
 		$returnval = 0;
 
@@ -684,7 +703,15 @@ class TrafficCron extends FroxlorCron
 				$domainargs .= ' -r ' . escapeshellarg($domain);
 			}
 
-			$outputdir = FileDir::makeCorrectDir($outputdir);
+			// re-validate: the customer-controlled 'webalizer' folder inside the documentroot
+			// could have been swapped for a symlink since it was last checked - mkdir/webalizer
+			// below would otherwise follow it and write as root outside the customer's homedir
+			try {
+				$outputdir = FileDir::makeCorrectDir($outputdir, $fixed_homedir);
+			} catch (Exception $e) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::webalizer: outputdir "' . $outputdir . '" is unsafe, skipping: ' . $e->getMessage());
+				return $returnval;
+			}
 			if (!file_exists($outputdir)) {
 				FileDir::safe_exec('mkdir -p ' . escapeshellarg($outputdir));
 			}
@@ -782,7 +809,7 @@ class TrafficCron extends FroxlorCron
 		return floatval($returnval);
 	}
 
-	private static function callAwstatsGetTraffic($customerid, $outputdir, $usersdomainlist, $current_stamp)
+	private static function callAwstatsGetTraffic($customerid, $outputdir, $usersdomainlist, $current_stamp, string $fixed_homedir = '')
 	{
 		$returnval = 0;
 
@@ -790,7 +817,7 @@ class TrafficCron extends FroxlorCron
 			// as we check for the config-model awstats will only parse
 			// 'real' domains and no subdomains which are aliases in the
 			// model-config-file.
-			$returnval += self::awstatsDoSingleDomain($singledomain, $outputdir, $current_stamp);
+			$returnval += self::awstatsDoSingleDomain($singledomain, $outputdir, $current_stamp, $fixed_homedir);
 			// kind of a keep-alive-call as this unsets the link which leads to a new connection to the database
 			Database::needRoot();
 		}
@@ -828,15 +855,23 @@ class TrafficCron extends FroxlorCron
 		return floatval($returnval);
 	}
 
-	private static function awstatsDoSingleDomain($domain, $outputdir, $current_stamp)
+	private static function awstatsDoSingleDomain($domain, $outputdir, $current_stamp, string $fixed_homedir = '')
 	{
 		$returnval = 0;
 
 		$domainconfig = FileDir::makeCorrectFile(Settings::Get('system.awstats_conf') . '/awstats.' . $domain . '.conf');
 
 		if (file_exists($domainconfig)) {
-			$outputdir = FileDir::makeCorrectDir($outputdir . '/' . $domain);
-			$staticOutputdir = FileDir::makeCorrectDir($outputdir . '/' . date('Y') . '-' . date('m'));
+			// re-validate: the customer-controlled 'awstats' folder inside the documentroot could
+			// have been swapped for a symlink since it was last checked - mkdir/awstats_buildstaticpages.pl
+			// below would otherwise follow it and write as root outside the customer's homedir
+			try {
+				$outputdir = FileDir::makeCorrectDir($outputdir . '/' . $domain, $fixed_homedir);
+				$staticOutputdir = FileDir::makeCorrectDir($outputdir . '/' . date('Y') . '-' . date('m'), $fixed_homedir);
+			} catch (Exception $e) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::awstats: outputdir for domain "' . $domain . '" is unsafe, skipping: ' . $e->getMessage());
+				return $returnval;
+			}
 
 			if (!is_dir($staticOutputdir)) {
 				FileDir::safe_exec('mkdir -p ' . escapeshellarg($staticOutputdir));
@@ -856,15 +891,25 @@ class TrafficCron extends FroxlorCron
 			FileDir::safe_exec($awbsp . ' -awstatsprog=' . escapeshellarg($awprog) . ' -update -month=' . date('m', $current_stamp) . ' -year=' . date('Y', $current_stamp) . ' -config=' . $domain . ' -dir=' . escapeshellarg($staticOutputdir));
 
 			// update our awstats index files
-			self::awstatsGenerateIndex($domain, $outputdir);
+			self::awstatsGenerateIndex($domain, $outputdir, $fixed_homedir);
 
 			// the default selection is 'current',
 			// so link the latest dir to it
-			$new_current = FileDir::makeCorrectFile($outputdir . '/current');
+			try {
+				$new_current = FileDir::makeCorrectFile($outputdir . '/current', $fixed_homedir);
+			} catch (Exception $e) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::awstats: outputdir for domain "' . $domain . '" is unsafe, skipping: ' . $e->getMessage());
+				return $returnval;
+			}
 			FileDir::safe_exec('ln -fTs ' . escapeshellarg($staticOutputdir) . ' ' . escapeshellarg($new_current));
 
 			// statistics file looks like: 'awstats[month][year].[domain].txt'
-			$file = FileDir::makeCorrectFile($outputdir . '/awstats' . date('mY', time()) . '.' . $domain . '.txt');
+			try {
+				$file = FileDir::makeCorrectFile($outputdir . '/awstats' . date('mY', time()) . '.' . $domain . '.txt', $fixed_homedir);
+			} catch (Exception $e) {
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::awstats: outputdir for domain "' . $domain . '" is unsafe, skipping: ' . $e->getMessage());
+				return $returnval;
+			}
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, "Gathering traffic information from '" . $file . "'");
 
 			if (file_exists($file)) {
@@ -900,7 +945,7 @@ class TrafficCron extends FroxlorCron
 		return $returnval;
 	}
 
-	private static function awstatsGenerateIndex($domain, $outputdir)
+	private static function awstatsGenerateIndex($domain, $outputdir, string $fixed_homedir = '')
 	{
 		// Generation header
 		$header = "<!-- GENERATED BY FROXLOR -->\n";
@@ -908,7 +953,12 @@ class TrafficCron extends FroxlorCron
 		// Looking for {year}-{month} directories
 		$entries = [];
 		foreach (scandir($outputdir) as $a) {
-			if (is_dir(FileDir::makeCorrectDir($outputdir . '/' . $a)) && preg_match('/^[0-9]{4}-[0-9]{2}$/', $a)) {
+			try {
+				$is_valid_entry_dir = is_dir(FileDir::makeCorrectDir($outputdir . '/' . $a, $fixed_homedir));
+			} catch (Exception $e) {
+				continue;
+			}
+			if ($is_valid_entry_dir && preg_match('/^[0-9]{4}-[0-9]{2}$/', $a)) {
 				array_push($entries, '<option value="' . $a . '">' . $a . '</option>');
 			}
 		}
@@ -930,11 +980,22 @@ class TrafficCron extends FroxlorCron
 		$nav_file = Froxlor::getInstallDir() . '/templates/misc/awstats/nav.html';
 		$nav_file = FileDir::makeCorrectFile($nav_file);
 
+		// re-validate: the customer-controlled 'awstats' folder inside the documentroot could
+		// have been swapped for a symlink since it was last checked - the unlink()/fopen('w')
+		// below would otherwise follow it and act as root outside the customer's homedir
+		try {
+			$index_html = FileDir::makeCorrectFile($outputdir . '/' . 'index.html', $fixed_homedir);
+			$nav_html = FileDir::makeCorrectFile($outputdir . '/' . 'nav.html', $fixed_homedir);
+		} catch (Exception $e) {
+			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, 'traffic::awstats-index: outputdir "' . $outputdir . '" is unsafe, skipping: ' . $e->getMessage());
+			return;
+		}
+
 		// Write the index file
 		// 'index.html' used to be a symlink (ignore errors in case this is the first run and no index.html exists yet)
-		@unlink(FileDir::makeCorrectFile($outputdir . '/' . 'index.html'));
+		@unlink($index_html);
 
-		$awstats_index_file = fopen(FileDir::makeCorrectFile($outputdir . '/' . 'index.html'), 'w');
+		$awstats_index_file = fopen($index_html, 'w');
 		$awstats_index_tpl = fopen($index_file, 'r');
 
 		// Write the header
@@ -950,7 +1011,7 @@ class TrafficCron extends FroxlorCron
 		fclose($awstats_index_tpl);
 
 		// Write the nav file
-		$awstats_nav_file = fopen(FileDir::makeCorrectFile($outputdir . '/' . 'nav.html'), 'w');
+		$awstats_nav_file = fopen($nav_html, 'w');
 		$awstats_nav_tpl = fopen($nav_file, 'r');
 
 		// Write the header

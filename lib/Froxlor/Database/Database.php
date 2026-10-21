@@ -190,12 +190,6 @@ class Database
 		if (!file_exists($sl_dir)) {
 			@mkdir($sl_dir, 0755);
 		}
-		if (!defined('TRAVIS_CI') || TRAVIS_CI == 0) {
-			openlog("froxlor", LOG_PID | LOG_PERROR, LOG_LOCAL0);
-			syslog(LOG_WARNING, str_replace("\n", " ", $error_message));
-			syslog(LOG_WARNING, str_replace("\n", " ", "--- DEBUG: " . $error_trace));
-			closelog();
-		}
 
 		/**
 		 * log error for reporting
@@ -203,12 +197,23 @@ class Database
 		$errid = self::genUniqueToken();
 		$err_file = FileDir::makeCorrectFile($sl_dir . "/" . $errid . "_sql-error.log");
 		$errlog = @fopen($err_file, 'w');
-		@fwrite($errlog, "|CODE " . $error->getCode() . "\n");
-		@fwrite($errlog, "|MSG " . $error_message . "\n");
-		@fwrite($errlog, "|FILE " . $error->getFile() . "\n");
-		@fwrite($errlog, "|LINE " . $error->getLine() . "\n");
-		@fwrite($errlog, "|TRACE\n" . $error_trace . "\n");
-		@fclose($errlog);
+		if ($errlog) {
+			@fwrite($errlog, "|CODE " . $error->getCode() . "\n");
+			@fwrite($errlog, "|MSG " . $error_message . "\n");
+			@fwrite($errlog, "|FILE " . $error->getFile() . "\n");
+			@fwrite($errlog, "|LINE " . $error->getLine() . "\n");
+			@fwrite($errlog, "|TRACE\n" . $error_trace . "\n");
+			@fclose($errlog);
+		} else {
+			$error_message .= "\n\nAdditionally, the error log could not be written. Please check the permissions of froxlor's logs/ directory.";
+		}
+
+		if (!defined('TRAVIS_CI') || TRAVIS_CI == 0) {
+			openlog("froxlor", LOG_PID | LOG_PERROR, LOG_LOCAL0);
+			syslog(LOG_WARNING, str_replace("\n", " ", $error_message));
+			syslog(LOG_WARNING, str_replace("\n", " ", "--- DEBUG: " . $error_trace));
+			closelog();
+		}
 
 		if (empty($sql['debug'])) {
 			$error_trace = '';
@@ -232,7 +237,7 @@ class Database
 			if ((isset($theme) && $theme != '') && !isset($_SERVER['SHELL']) || (isset($_SERVER['SHELL']) && $_SERVER['SHELL'] == '')) {
 				// if we're not on the shell, output a nice error
 				$err_report_link = '';
-				if (is_array($userinfo) && (($userinfo['adminsession'] == '1' && Settings::Get('system.allow_error_report_admin') == '1') || ($userinfo['adminsession'] == '0' && Settings::Get('system.allow_error_report_customer') == '1'))) {
+				if ($errlog && is_array($userinfo) && (($userinfo['adminsession'] == '1' && Settings::Get('system.allow_error_report_admin') == '1') || ($userinfo['adminsession'] == '0' && Settings::Get('system.allow_error_report_customer') == '1'))) {
 					$err_report_link = $linker->getLink([
 						'section' => 'index',
 						'page' => 'send_error_report',
@@ -508,8 +513,8 @@ class Database
 			$dbconf["dsn"]['port'] = $port;
 
 			if (!empty(self::$sqldata['ssl_ca_file'])) {
-				$options[PDO::MYSQL_ATTR_SSL_CA] = self::$sqldata['ssl_ca_file'];
-				$options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = (bool)self::$sqldata['ssl_verify_server_certificate'];
+				$options[self::pdoMysqlAttribute('SSL_CA')] = self::$sqldata['ssl_ca_file'];
+				$options[self::pdoMysqlAttribute('SSL_VERIFY_SERVER_CERT')] = (bool)self::$sqldata['ssl_verify_server_certificate'];
 			}
 		}
 
@@ -584,6 +589,22 @@ class Database
 			}
 		}
 		return $mysql_max;
+	}
+
+	/**
+	 * returns the value of a pdo_mysql driver specific attribute (e.g. 'SSL_CA');
+	 * PHP 8.4 added Pdo\Mysql::ATTR_* and PHP 8.5 deprecates the PDO::MYSQL_ATTR_* constants
+	 *
+	 * @param string $name
+	 *
+	 * @return int
+	 */
+	public static function pdoMysqlAttribute(string $name): int
+	{
+		if (defined('Pdo\\Mysql::ATTR_' . $name)) {
+			return constant('Pdo\\Mysql::ATTR_' . $name);
+		}
+		return constant('PDO::MYSQL_ATTR_' . $name);
 	}
 
 	/**

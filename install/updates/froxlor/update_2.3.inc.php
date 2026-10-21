@@ -214,11 +214,92 @@ if (Froxlor::isFroxlorVersion('2.3.5')) {
 }
 
 if (Froxlor::isFroxlorVersion('2.3.6')) {
+	Update::showUpdateStep("Updating from 2.3.6 to 2.3.7", false);
+	Froxlor::updateToVersion('2.3.7');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.7')) {
+	Update::showUpdateStep("Updating from 2.3.7 to 2.3.8", false);
+	Froxlor::updateToVersion('2.3.8');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.8')) {
+	Update::showUpdateStep("Updating from 2.3.8 to 2.3.9", false);
+	Froxlor::updateToVersion('2.3.9');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.9')) {
+	Update::showUpdateStep("Updating from 2.3.9 to 2.3.10", false);
+	Froxlor::updateToVersion('2.3.10');
+}
+
+/*
+ * fork-specific: installations of the service-separation development branch are
+ * on database-version 202604190, which is ahead of 202603100 and would therefore
+ * skip this step and never reach 202608210
+ */
+if (Froxlor::isDatabaseVersion('202603100') || Froxlor::isDatabaseVersion('202604190')) {
+
+	Update::showUpdateStep("Adding account-type namespace to 2fa remember-tokens");
+	Database::query("ALTER TABLE `" . TABLE_PANEL_2FA_TOKENS . "` ADD `admin` tinyint(1) unsigned NOT NULL default '0' AFTER `userid`;");
+	// admin- and customer-ids are separate namespaces that can collide (e.g. both id 1);
+	// existing tokens can't be attributed to either after the fact, so purge them rather
+	// than risk a stale token matching the wrong account type - affected users are just
+	// prompted for 2fa again on their next login
+	Database::query("DELETE FROM `" . TABLE_PANEL_2FA_TOKENS . "`;");
+	Update::lastStepStatus(0);
+
+	Froxlor::updateToDbVersion('202608210');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.10')) {
+	Update::showUpdateStep("Updating from 2.3.10 to 2.3.11", false);
+	Froxlor::updateToVersion('2.3.11');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.11')) {
+	Update::showUpdateStep("Updating from 2.3.11 to 2.3.12", false);
+	Froxlor::updateToVersion('2.3.12');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.12')) {
+	Update::showUpdateStep("Updating from 2.3.12 to 2.3.13", false);
+	Froxlor::updateToVersion('2.3.13');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.13')) {
+	Update::showUpdateStep("Updating from 2.3.13 to 2.3.14", false);
+	Froxlor::updateToVersion('2.3.14');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.14')) {
+	Update::showUpdateStep("Updating from 2.3.14 to 2.3.15", false);
+	Froxlor::updateToVersion('2.3.15');
+}
+
+if (Froxlor::isFroxlorVersion('2.3.15')) {
+	Update::showUpdateStep("Updating from 2.3.15 to 2.3.16", false);
+	Froxlor::updateToVersion('2.3.16');
+}
+
+/*
+ * fork-specific: installs of the service-separation development branch were
+ * sitting on 2.3.7-dev and have to be moved onto the upstream release line
+ */
+if (Froxlor::isFroxlorVersion('2.3.7-dev')) {
+	Update::showUpdateStep("Updating from 2.3.7-dev to 2.3.16", false);
+	Froxlor::updateToVersion('2.3.16');
+}
+
+/*
+ * fork-specific: add the settings of the service-separation feature
+ */
+if (Froxlor::isFroxlorVersion('2.3.16')) {
 	Update::showUpdateStep("Adding service separation settings");
 	Settings::AddNew("system.enable_service_ports", "0");
 	Settings::AddNew("system.panel_webserver", "");
 	Settings::AddNew("system.panel_http_port", "8080");
 	Settings::AddNew("system.panel_https_port", "8043");
 	Update::lastStepStatus(0);
-	Froxlor::updateToVersion('2.3.7-dev');
+	Froxlor::updateToVersion('2.3.16-dev');
 }

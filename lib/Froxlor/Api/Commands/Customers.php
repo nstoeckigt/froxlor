@@ -38,6 +38,7 @@ use Froxlor\Language;
 use Froxlor\Settings;
 use Froxlor\System\Cronjob;
 use Froxlor\System\Crypt;
+use Froxlor\UI\Panel\UI;
 use Froxlor\UI\Response;
 use Froxlor\User;
 use Froxlor\Validate\Validate;
@@ -129,6 +130,10 @@ class Customers extends ApiCommand implements ResourceEntity
 						$row['dbspace_used'] = 0;
 					}
 				}
+				// unset sensitive data
+				unset($row['password']);
+				unset($row['data_2fa']);
+				unset($row['leprivatekey']);
 				$result[] = $row;
 			}
 			return $this->response([
@@ -969,6 +974,12 @@ class Customers extends ApiCommand implements ResourceEntity
 					$result['dbspace_used'] = 0;
 				}
 			}
+			if (!$this->isInternal()) {
+				// unset sensitive data
+				unset($result['password']);
+				unset($result['data_2fa']);
+			}
+			unset($result['leprivatekey']);
 			$this->logger()->logAction($this->isAdmin() ? FroxlorLogger::ADM_ACTION : FroxlorLogger::USR_ACTION, LOG_INFO, "[API] get customer '" . $result['loginname'] . "'");
 			return $this->response($result);
 		}
@@ -1119,7 +1130,7 @@ class Customers extends ApiCommand implements ResourceEntity
 		$result = $this->apiCall('Customers.get', [
 			'id' => $id,
 			'loginname' => $loginname
-		]);
+		], true);
 		$id = $result['customerid'];
 
 		if ($this->isAdmin()) {
@@ -1213,7 +1224,12 @@ class Customers extends ApiCommand implements ResourceEntity
 			$def_language = Settings::Get('panel.standardlanguage');
 		}
 
+		// only allow known, installed themes - the value is rendered unescaped in the admin
+		// customer listing's optional Theme column, so anything else must never reach the DB
 		$theme = Validate::validate($theme, 'theme', '', '', [], true);
+		if (!empty($theme) && !isset(UI::getThemes()[$theme])) {
+			$theme = '';
+		}
 
 		if (Settings::Get('system.mail_quota_enabled') != '1') {
 			$email_quota = -1;
@@ -1568,6 +1584,20 @@ class Customers extends ApiCommand implements ResourceEntity
 		$upd_query .= " WHERE `customerid` = :customerid";
 		$upd_stmt = Database::prepare($upd_query);
 		Database::pexecute($upd_stmt, $upd_data);
+
+		if ($password != $result['password']) {
+			// password has been changed - purge 2fa "remember this device" tokens so a
+			// credential rotation actually locks out anyone holding a surviving cookie.
+			// api-keys are intentionally left untouched here; the UI hints at rotating them instead.
+			// guarded by db_version since the `admin` column might not exist yet if this code
+			// has been deployed but the db update hasn't run yet
+			if (Settings::Get('panel.db_version') >= 202608210) {
+				$del_stmt = Database::prepare("DELETE FROM `" . TABLE_PANEL_2FA_TOKENS . "` WHERE `userid` = :id AND `admin` = '0'");
+				Database::pexecute($del_stmt, [
+					'id' => $id
+				], true, true);
+			}
+		}
 
 		if ($this->isAdmin()) {
 			// Using filesystem - quota, insert a task which cleans the filesystem - quota
