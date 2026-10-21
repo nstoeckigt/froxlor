@@ -28,6 +28,7 @@ namespace Froxlor\Cron\Http;
 use Froxlor\Database\Database;
 use Froxlor\Domain\Domain;
 use Froxlor\Settings;
+use Froxlor\System\ServicePorts;
 use PDO;
 
 class WebserverBase
@@ -37,9 +38,10 @@ class WebserverBase
 	 * returns an array with all entries required for all
 	 * webserver-vhost-configs
 	 *
+	 * @param string|null $webserver if set, only domains whose ports belong to this webserver are returned
 	 * @return array
 	 */
-	public static function getVhostsToCreate()
+	public static function getVhostsToCreate(?string $webserver = null)
 	{
 		$query = "SELECT `d`.*, `pd`.`domain` AS `parentdomain`, `c`.`loginname`,
 				`d`.`phpsettingid`, `c`.`adminid`, `c`.`guid`, `c`.`email`,
@@ -75,8 +77,40 @@ class WebserverBase
 			WHERE p.id = :phpconfigid
 		");
 
+		// prepare ip/port lookup for webserver filtering (service separation)
+		$ip_port_stmt = null;
+		if ($webserver !== null) {
+			$ip_port_stmt = Database::prepare("
+				SELECT `p`.`port` FROM `" . TABLE_DOMAINTOIP . "` `di`, `" . TABLE_PANEL_IPSANDPORTS . "` `p`
+				WHERE `p`.`id` = `di`.`id_ipandports`
+				AND `di`.`id_domain` = :domainid
+			");
+		}
+
 		$domains = [];
 		while ($domain = $result_domains_stmt->fetch(PDO::FETCH_ASSOC)) {
+			// Service separation: skip domains whose ports don't belong to this webserver
+			if ($webserver !== null) {
+				$domain_ports = [];
+				$ip_port_stmt->execute(['domainid' => $domain['id']]);
+				while ($ipp = $ip_port_stmt->fetch(PDO::FETCH_ASSOC)) {
+					$domain_ports[] = (int) $ipp['port'];
+				}
+				if (empty($domain_ports)) {
+					continue;
+				}
+				$has_port_for_webserver = false;
+				foreach ($domain_ports as $port) {
+					if (ServicePorts::isPortForWebserver($port, $webserver)) {
+						$has_port_for_webserver = true;
+						break;
+					}
+				}
+				if (!$has_port_for_webserver) {
+					continue;
+				}
+			}
+
 			// set whole domain
 			$domains[$domain['domain']] = $domain;
 			// set empty-defaults for non-ssl

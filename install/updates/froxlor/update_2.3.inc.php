@@ -300,6 +300,7 @@ if (Froxlor::isFroxlorVersion('2.3.16')) {
 	Settings::AddNew("system.panel_webserver", "");
 	Settings::AddNew("system.panel_http_port", "8080");
 	Settings::AddNew("system.panel_https_port", "8043");
+	Settings::AddNew("system.nginxconf_vhost", "/etc/nginx/sites-enabled/");
 	Update::lastStepStatus(0);
 	Froxlor::updateToVersion('2.3.16-dev');
 }

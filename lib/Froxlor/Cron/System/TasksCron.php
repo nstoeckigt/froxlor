@@ -217,9 +217,9 @@ class TasksCron extends FroxlorCron
 			// clean up old configs
 			$configio->cleanUp();
 			$webserver->createIpPort();
-			$webserver->createVirtualHosts();
+			$webserver->createVirtualHosts($webserver_type);
 			$webserver->createFileDirOptions();
-			$webserver->writeConfigs();
+			$webserver->writeConfigs($webserver_type);
 			$webserver->createOwnVhostStarter();
 			$webserver->reload();
 		} else {

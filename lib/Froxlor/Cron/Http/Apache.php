@@ -592,9 +592,9 @@ class Apache extends HttpConfigBase
 	/**
 	 * We compose the virtualhost entries for the domains
 	 */
-	public function createVirtualHosts()
+	public function createVirtualHosts(string $webserver_type = '')
 	{
-		$domains = WebserverBase::getVhostsToCreate();
+		$domains = WebserverBase::getVhostsToCreate($webserver_type);
 		foreach ($domains as $domain) {
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'apache::createVirtualHosts: creating vhost container for domain ' . $domain['id'] . ', customer ' . $domain['loginname']);
 			$vhosts_filename = $this->getVhostFilename($domain);
