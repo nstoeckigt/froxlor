@@ -78,72 +78,7 @@ class Nginx extends HttpConfigBase
 
 	public function createVirtualHosts(string $webserver_type = '')
 	{
-		$domains = WebserverBase::getVhostsToCreate($webserver_type);
-		foreach ($domains as $domain) {
-			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'nginx::createVirtualHosts: creating vhost container for domain ' . $domain['id'] . ', customer ' . $domain['loginname']);
-			$vhosts_filename = $this->getVhostFilename($domain);
-
-			// Apply header
-			$this->nginx_data[$vhosts_filename] = '# Domain ID: ' . $domain['id'] . ' - CustomerID: ' . $domain['customerid'] . ' - CustomerLogin: ' . $domain['loginname'] . "\n";
-
-			// Get IP/port assignments for this domain
-			$query = "SELECT `i`.`ip`, `i`.`port`, `i`.`ssl` FROM `" . TABLE_PANEL_IPSANDPORTS . "` `i`, `" . TABLE_DOMAINTOIP . "` `dip`
-				WHERE dip.id_domain = :domainid AND i.id = dip.id_ipandports";
-
-			// Service separation: exclude panel ports when the panel is served by a different webserver
-			if (ServicePorts::isEnabled() && ServicePorts::getPanelWebserver() !== ServicePorts::getCustomerWebserver()) {
-				$panelPorts = array_keys(ServicePorts::getPanelPorts());
-				if (!empty($panelPorts)) {
-					$query .= " AND i.port NOT IN (" . implode(',', array_map('intval', $panelPorts)) . ")";
-				}
-			}
-
-			$query .= " ORDER BY i.port ASC";
-
-			$result_stmt = Database::prepare($query);
-			Database::pexecute($result_stmt, [
-				'domainid' => $domain['id']
-			]);
-
-			$ssl_vhost = false;
-			$ipportlist = '';
-			while ($ipandport = $result_stmt->fetch(PDO::FETCH_ASSOC)) {
-				$ip = $ipandport['ip'];
-				$port = $ipandport['port'];
-
-				if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
-					$ip = '[' . $ip . ']';
-				}
-
-				if ($ipandport['ssl'] == '1') {
-					$ssl_vhost = true;
-				}
-
-				$ipportlist .= $ip . ':' . $port . ' ';
-			}
-
-			if (empty($ipportlist)) {
-				continue;
-			}
-
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'listen    ' . trim($ipportlist) . ';' . "\n";
-
-			if ($ssl_vhost) {
-				$this->nginx_data[$vhosts_filename] .= "\t" . 'ssl_certificate     ' . FileDir::makeCorrectFile($domain['ssl_cert_file']) . ';' . "\n";
-				$this->nginx_data[$vhosts_filename] .= "\t" . 'ssl_certificate_key ' . FileDir::makeCorrectFile($domain['ssl_key_file']) . ';' . "\n";
-			}
-
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'server_name    ' . $domain['domain'] . ';' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'root     ' . $domain['documentroot'] . ';' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'index    index.php index.html index.htm;' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'location / {' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . '}' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . 'location ~ \.php$ {' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . '    include fastcgi_params;' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . '    fastcgi_pass unix:/var/lib/apache2/fastcgi/1-' . $domain['loginname'] . '-' . $domain['domain'] . '-php-fpm.socket;' . "\n";
-			$this->nginx_data[$vhosts_filename] .= "\t" . '}' . "\n";
-			$this->nginx_data[$vhosts_filename] .= '}' . "\n";
-		}
+		return;
 	}
 
 	/**
@@ -160,7 +95,10 @@ class Nginx extends HttpConfigBase
 
 		$vhost_config_dir = Settings::Get('system.apacheconf_vhost');
 		if (\Froxlor\System\ServicePorts::isEnabled() && \Froxlor\System\ServicePorts::getPanelWebserver() !== \Froxlor\System\ServicePorts::getCustomerWebserver()) {
-			$vhost_config_dir = Settings::Get('system.nginxconf_vhost');
+			$nginx_dir = Settings::Get('system.nginxconf_vhost');
+			if (!empty($nginx_dir)) {
+				$vhost_config_dir = $nginx_dir;
+			}
 		}
 
 		return FileDir::makeCorrectFile($vhost_config_dir . '/' . $filename);
@@ -196,7 +134,10 @@ class Nginx extends HttpConfigBase
 			// Use nginx vhost directory when service separation is active
 			$vhost_config_dir = Settings::Get('system.apacheconf_vhost');
 			if (\Froxlor\System\ServicePorts::isEnabled() && \Froxlor\System\ServicePorts::getPanelWebserver() !== \Froxlor\System\ServicePorts::getCustomerWebserver()) {
-				$vhost_config_dir = Settings::Get('system.nginxconf_vhost');
+				$nginx_dir = Settings::Get('system.nginxconf_vhost');
+				if (!empty($nginx_dir)) {
+					$vhost_config_dir = $nginx_dir;
+				}
 			}
 			$vhost_filename = FileDir::makeCorrectFile($vhost_config_dir . '/10_froxlor_ipandport_' . trim(str_replace(':', '.', $row_ipsandports['ip']), '.') . '.' . $row_ipsandports['port'] . '.conf');
 
@@ -1382,7 +1323,15 @@ class Nginx extends HttpConfigBase
 		// Use nginx vhost directory when service separation is active
 		$vhost_config_dir = Settings::Get('system.apacheconf_vhost');
 		if (\Froxlor\System\ServicePorts::isEnabled() && \Froxlor\System\ServicePorts::getPanelWebserver() !== \Froxlor\System\ServicePorts::getCustomerWebserver()) {
-			$vhost_config_dir = Settings::Get('system.nginxconf_vhost');
+			$nginx_dir = Settings::Get('system.nginxconf_vhost');
+			if (!empty($nginx_dir)) {
+				$vhost_config_dir = $nginx_dir;
+			}
+		}
+
+		// If no valid directory, nothing to write for nginx
+		if (empty($vhost_config_dir)) {
+			return;
 		}
 
 		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, "nginx::writeConfigs: rebuilding " . $vhost_config_dir);
