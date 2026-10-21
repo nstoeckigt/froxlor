@@ -169,6 +169,12 @@ class TasksCron extends FroxlorCron
 			}
 		}
 
+		// clean up old configs once, before any webserver writes its new ones
+		// (otherwise each webserver's cleanUp() would delete the other's freshly
+		// written configs — e.g. nginx cleaning apache's vhost directory)
+		$configio = new ConfigIO();
+		$configio->cleanUp();
+
 		foreach (array_unique($webservers) as $webserver) {
 			self::rebuildWebserverConfig($webserver);
 		}
@@ -214,8 +220,6 @@ class TasksCron extends FroxlorCron
 
 		if ($webserver instanceof HttpConfigBase) {
 			$webserver->init();
-			// clean up old configs
-			$configio->cleanUp();
 			$webserver->createIpPort();
 			$webserver->createVirtualHosts($webserver_type);
 			$webserver->createFileDirOptions();
