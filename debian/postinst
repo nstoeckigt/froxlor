@@ -1,0 +1,45 @@
+#!/bin/sh
+set -e
+
+FROXLOR_DIR="/usr/share/froxlor"
+USERDATA="$FROXLOR_DIR/lib/userdata.inc.php"
+
+case "$1" in
+    configure)
+        # Wenn userdata.inc.php existiert -> Update-Szenario
+        if [ -f "$USERDATA" ]; then
+            echo "Froxlor-Update erkannt: führe Datenbank-Update-Chain aus..."
+            if php "$FROXLOR_DIR/admin_updates.php" --cli 2>/dev/null; then
+                echo "Datenbank-Update erfolgreich abgeschlossen."
+            else
+                echo "WARNUNG: Automatisches Datenbank-Update fehlgeschlagen."
+                echo "Bitte rufen Sie admin_updates.php im Browser auf oder führen Sie manuell aus:"
+                echo "  php $FROXLOR_DIR/admin_updates.php"
+            fi
+        else
+            echo "Froxlor 2.3.16-dev neu installiert unter $FROXLOR_DIR"
+            echo ""
+            echo "Nächste Schritte:"
+            echo "  1. Konfigurieren Sie lib/userdata.inc.php mit Ihren Datenbank-Zugangsdaten"
+            echo "  2. Rufen Sie den Web-Installer auf (install/) oder führen Sie aus:"
+            echo "     php $FROXLOR_DIR/admin_updates.php"
+            echo "  3. Richten Sie einen Webserver-VHost auf $FROXLOR_DIR ein"
+            echo "  4. Richten Sie einen Cronjob ein:"
+            echo "     * * * * * root /usr/bin/php $FROXLOR_DIR/lib/Froxlor/Cron/Cron.php"
+        fi
+
+        # Cronjob sicherstellen (nur hinzufügen, nicht überschreiben)
+        if ! grep -q "froxlor:cron" /etc/cron.d/froxlor 2>/dev/null; then
+            echo "* * * * * root /usr/bin/php $FROXLOR_DIR/lib/Froxlor/Cron/Cron.php --force" > /etc/cron.d/froxlor
+            chmod 644 /etc/cron.d/froxlor
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

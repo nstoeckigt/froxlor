@@ -1,0 +1,22 @@
+Package: froxlor
+Version: 2.3.16-dev
+Section: web
+Priority: optional
+Architecture: all
+Maintainer: Froxlor Team <info@froxlor.org>
+Depends: php (>= 7.4), php-cli, php-common, php-curl, php-fileinfo, php-filter, php-gd, php-gmp, php-json, php-mbstring, php-mysql, php-openssl, php-pdo, php-posix, php-session, php-simplexml, php-sockets, php-tokenizer, php-xml, php-zip, apache2 | nginx, mysql-server | mariadb-server, wget
+Recommends: cron, logrotate
+Description: Froxlor - PHP-based hosting control panel
+ Froxlor is a server administration software for your needs. Developed by
+ experienced server administrators, this panel simplifies the effort of
+ managing your hosting panel.
+ .
+ This package provides the Froxlor panel files under /usr/share/froxlor.
+ On first installation, run the web-based installer or copy
+ lib/userdata.inc.php.dist to lib/userdata.inc.php and configure your
+ database credentials, then call admin_updates.php to initialize the schema.
+ .
+ On upgrade, the database update chain is executed automatically via
+ admin_updates.php (CLI). Make sure your MySQL/MariaDB server is running
+ and reachable before upgrading.
+Homepage: https://froxlor.org/

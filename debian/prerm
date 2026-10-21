@@ -1,0 +1,21 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|deconfigure)
+        # Cronjob entfernen
+        rm -f /etc/cron.d/froxlor
+        ;;
+    purge)
+        # Nicht automatisch löschen: Benutzerdaten sollen erhalten bleiben
+        echo "Froxlor-Paket entfernt. Dateien unter /usr/share/froxlor bleiben erhalten."
+        ;;
+    failed-upgrade)
+        ;;
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

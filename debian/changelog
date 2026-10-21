@@ -1,0 +1,8 @@
+froxlor (2.3.16-dev) stable; urgency=medium
+
+  * Merge upstream v2 (2.3.16) into service-separation fork
+  * VERSION=2.3.16-dev, DBVERSION=202608210
+  * Service Separation feature included
+  * Automatic database update chain on package upgrade
+
+ -- Froxlor Team <info@froxlor.org>  Wed, 21 Oct 2026 00:00:00 +0000
