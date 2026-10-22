@@ -595,9 +595,11 @@ class Apache extends HttpConfigBase
 	public function createVirtualHosts(string $webserver_type = '')
 	{
 		$domains = WebserverBase::getVhostsToCreate($webserver_type);
+		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: got ' . count($domains) . ' domains for webserver ' . $webserver_type);
 		foreach ($domains as $domain) {
 			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, 'apache::createVirtualHosts: creating vhost container for domain ' . $domain['id'] . ', customer ' . $domain['loginname']);
 			$vhosts_filename = $this->getVhostFilename($domain);
+			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: filename=' . $vhosts_filename);
 
 			// Apply header
 			$this->virtualhosts_data[$vhosts_filename] = '# Domain ID: ' . $domain['id'] . ' - CustomerID: ' . $domain['customerid'] . ' - CustomerLogin: ' . $domain['loginname'] . "\n";
@@ -607,16 +609,23 @@ class Apache extends HttpConfigBase
 				$this->virtualhosts_data[$vhosts_filename] .= '# Customer/domain deactivated and a docroot for deactivated users hasn\'t been set.' . "\n";
 			} else {
 				// Create vhost without ssl
-				$this->virtualhosts_data[$vhosts_filename] .= $this->getVhostContent($domain, false);
+				$content = $this->getVhostContent($domain, false);
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: content_len=' . strlen($content) . ' for domain ' . $domain['id']);
+				$this->virtualhosts_data[$vhosts_filename] .= $content;
 
-				if ($domain['ssl_enabled'] == '1' && ($domain['ssl'] == '1' || $domain['ssl_redirect'] == '1')) {
+				$ssl_enabled_check = (isset($domain['ssl_enabled']) && $domain['ssl_enabled'] == '1') || (isset($domain['ssl']) && $domain['ssl'] == '1') || (isset($domain['ssl_redirect']) && $domain['ssl_redirect'] == '1');
+				if ($ssl_enabled_check) {
 					// Adding ssl stuff if enabled
 					$vhosts_filename_ssl = $this->getVhostFilename($domain, true);
+					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: ssl_filename=' . $vhosts_filename_ssl);
 					$this->virtualhosts_data[$vhosts_filename_ssl] = '# Domain ID: ' . $domain['id'] . ' (SSL) - CustomerID: ' . $domain['customerid'] . ' - CustomerLogin: ' . $domain['loginname'] . "\n";
-					$this->virtualhosts_data[$vhosts_filename_ssl] .= $this->getVhostContent($domain, true);
+					$content_ssl = $this->getVhostContent($domain, true);
+					FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: ssl_content_len=' . strlen($content_ssl) . ' for domain ' . $domain['id']);
+					$this->virtualhosts_data[$vhosts_filename_ssl] .= $content_ssl;
 				}
 			}
 		}
+		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::createVirtualHosts: total virtualhosts_data entries=' . count($this->virtualhosts_data));
 	}
 
 	/**
@@ -624,7 +633,9 @@ class Apache extends HttpConfigBase
 	 */
 	protected function getVhostContent($domain, $ssl_vhost = false)
 	{
+		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::getVhostContent: domain=' . $domain['id'] . ' ssl_vhost=' . ($ssl_vhost ? '1' : '0') . ' ssl=' . ($domain['ssl'] ?? 'null') . ' ssl_redirect=' . ($domain['ssl_redirect'] ?? 'null'));
 		if ($ssl_vhost === true && ($domain['ssl_redirect'] != '1' && $domain['ssl'] != '1')) {
+			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::getVhostContent: returning empty for ssl_vhost due to ssl flags');
 			return '';
 		}
 
@@ -636,6 +647,7 @@ class Apache extends HttpConfigBase
 			$panelPorts = array_keys(ServicePorts::getPanelPorts());
 			if (!empty($panelPorts)) {
 				$query .= " AND i.port NOT IN (" . implode(',', array_map('intval', $panelPorts)) . ")";
+				FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::getVhostContent: excluding panel ports ' . implode(',', $panelPorts));
 			}
 		}
 
@@ -646,11 +658,19 @@ class Apache extends HttpConfigBase
 			$query .= "AND i.ssl = '0';";
 		}
 
+		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::getVhostContent: query=' . $query);
 		$vhost_content = '';
 		$result_stmt = Database::prepare($query);
 		Database::pexecute($result_stmt, [
 			'domainid' => $domain['id']
 		]);
+		$rowCount = $result_stmt->rowCount();
+		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_DEBUG, 'apache::getVhostContent: num rows=' . $rowCount . ' for domain ' . $domain['id']);
+
+		if ($rowCount == 0) {
+			FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_WARNING, 'apache::getVhostContent: no ip/port rows found for domain ' . $domain['id'] . ' (domain=' . $domain['domain'] . ') after filtering');
+			return '# no ip/port assigned or filtered out for this domain' . "\n";
+		}
 
 		$ipportlist = '';
 		$_vhost_content = '';
