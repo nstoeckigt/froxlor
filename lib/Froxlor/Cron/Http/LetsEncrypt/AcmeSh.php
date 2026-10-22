@@ -792,13 +792,21 @@ EOSSL;
 
 	private static function getCertificateFolder(string $domain): string
 	{
-		$certificate_folder = self::getWorkingDirFromEnv(strtolower($domain));
-		if (file_exists($certificate_folder)) {
-			return $certificate_folder;
+		$folders = [
+			self::getWorkingDirFromEnv(strtolower($domain)),
+			self::getWorkingDirFromEnv($domain, true)
+		];
+		// switching between ecc and rsa leaves the old folder behind, so prefer
+		// the one that actually holds a certificate
+		foreach ($folders as $folder) {
+			if (file_exists(FileDir::makeCorrectFile($folder . '/fullchain.cer'))) {
+				return $folder;
+			}
 		}
-		$certificate_folder_ecc = self::getWorkingDirFromEnv($domain, true);
-		if (file_exists($certificate_folder_ecc)) {
-			return $certificate_folder_ecc;
+		foreach ($folders as $folder) {
+			if (file_exists($folder)) {
+				return $folder;
+			}
 		}
 		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_ERR, "Could not find certificate-folder for domain '" . $domain . "'");
 		return "";
