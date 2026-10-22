@@ -4,7 +4,7 @@ Section: web
 Priority: optional
 Architecture: all
 Maintainer: Froxlor Team <info@froxlor.org>
-Depends: php (>= 7.4), php-cli, php-common, php-curl, php-fileinfo, php-filter, php-gd, php-gmp, php-json, php-mbstring, php-mysql, php-openssl, php-pdo, php-posix, php-session, php-simplexml, php-sockets, php-tokenizer, php-xml, php-zip, apache2 | nginx, mysql-server | mariadb-server, wget
+Depends: php-cli, php-common, php-bcmath, php-curl, php-gd, php-gmp, php-mbstring, php-mysql, php-xml, php-zip, apache2 | nginx, mysql-server | mariadb-server, wget
 Recommends: cron, logrotate
 Description: Froxlor - PHP-based hosting control panel
  Froxlor is a server administration software for your needs. Developed by
