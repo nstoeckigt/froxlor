@@ -503,7 +503,7 @@ class Nginx extends HttpConfigBase
 	 */
 	protected function createNginxHosts()
 	{
-		$domains = WebserverBase::getVhostsToCreate();
+		$domains = WebserverBase::getVhostsToCreate('nginx');
 		foreach ($domains as $domain) {
 			if (is_dir(Settings::Get('system.apacheconf_vhost'))) {
 				FileDir::safe_exec('mkdir -p ' . escapeshellarg(FileDir::makeCorrectDir(Settings::Get('system.apacheconf_vhost'))));
