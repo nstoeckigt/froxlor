@@ -1478,7 +1478,7 @@ class Domains extends ApiCommand implements ResourceEntity
 					$dkim = $result['dkim'];
 				}
 
-				$specialsettings = Validate::validate(str_replace("\r\n", "\n", $specialsettings), 'specialsettings', Validate::REGEX_CONF_TEXT, '', [], true);
+				$specialsettings = Validate::validate(str_replace("\r\n", "\n", $specialsettings ?? ""), 'specialsettings', Validate::REGEX_CONF_TEXT, '', [], true);
 
 				$ssl_protocols = [];
 				if (!empty($p_ssl_protocols) && is_numeric($p_ssl_protocols)) {
@@ -1598,7 +1598,7 @@ class Domains extends ApiCommand implements ResourceEntity
 				$ssl_ipandports = $this->validateIpAddresses($p_ssl_ipandports, true, $result['id']);
 
 				if ($this->getUserDetail('change_serversettings') == '1') {
-					$ssl_specialsettings = Validate::validate(str_replace("\r\n", "\n", $ssl_specialsettings), 'ssl_specialsettings', '/^[^\0]*$/', '', [], true);
+					$ssl_specialsettings = Validate::validate(str_replace("\r\n", "\n", $ssl_specialsettings ?? ""), 'ssl_specialsettings', '/^[^\0]*$/', '', [], true);
 				}
 			}
 			if ($remove_ssl_ipandport || (!empty($p_ssl_ipandports) && $p_ssl_ipandports[0] == -1)) {
