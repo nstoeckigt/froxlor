@@ -29,6 +29,7 @@ use Froxlor\Database\Database;
 use Froxlor\FileDir;
 use Froxlor\Froxlor;
 use Froxlor\Settings;
+use Froxlor\System\ServicePorts;
 use PDO;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -244,6 +245,15 @@ class ConfigIO
 		if ($dir !== false) {
 			$configdirs[] = FileDir::makeCorrectDir($dir);
 		}
+
+		// with service separation the panel webserver has its own vhost directory
+		if (ServicePorts::isEnabled()) {
+			$dir = $this->getFile('system', 'nginxconf_vhost');
+			if ($dir !== false && $dir !== '') {
+				$configdirs[] = FileDir::makeCorrectDir($dir);
+			}
+		}
+		$configdirs = array_unique($configdirs);
 
 		// file pattern
 		$pattern = "/^([0-9]){2}_(froxlor|syscp)_(.+)\.conf$/";
