@@ -9,12 +9,12 @@ case "$1" in
         # Wenn userdata.inc.php existiert -> Update-Szenario
         if [ -f "$USERDATA" ]; then
             echo "Froxlor-Update erkannt: führe Datenbank-Update-Chain aus..."
-            if php "$FROXLOR_DIR/admin_updates.php" --cli 2>/dev/null; then
+            if php "$FROXLOR_DIR/bin/froxlor-cli" froxlor:update --database --yes-to-all --no-interaction; then
                 echo "Datenbank-Update erfolgreich abgeschlossen."
             else
                 echo "WARNUNG: Automatisches Datenbank-Update fehlgeschlagen."
                 echo "Bitte rufen Sie admin_updates.php im Browser auf oder führen Sie manuell aus:"
-                echo "  php $FROXLOR_DIR/admin_updates.php"
+                echo "  php $FROXLOR_DIR/bin/froxlor-cli froxlor:update --database --yes-to-all"
             fi
         else
             echo "Froxlor 2.3.16-dev neu installiert unter $FROXLOR_DIR"
