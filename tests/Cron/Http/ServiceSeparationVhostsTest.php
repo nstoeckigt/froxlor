@@ -26,7 +26,11 @@ class ServiceSeparationVhostsTest extends TestCase
 		'system.panel_webserver',
 		'system.panel_http_port',
 		'system.panel_https_port',
-		'system.apachereload_command'
+		'system.apachereload_command',
+		'system.letsencryptacmeconf',
+		'system.letsencryptacmeconf_nginx',
+		'system.use_ssl',
+		'system.leenabled'
 	];
 
 	private $saved = [];
@@ -128,5 +132,30 @@ class ServiceSeparationVhostsTest extends TestCase
 
 		Settings::Set('system.enable_service_ports', '0', false);
 		$this->assertSame('service apache2 reload', $reload(Nginx::class));
+	}
+
+	public function testNginxVhostIncludesItsOwnAcmeSnippet()
+	{
+		$this->separate('apache2', 'nginx');
+		Settings::Set('system.use_ssl', '1', false);
+		Settings::Set('system.leenabled', '1', false);
+		Settings::Set('system.letsencryptacmeconf', '/etc/apache2/conf-enabled/frx-acme.conf', false);
+		Settings::Set('system.letsencryptacmeconf_nginx', '/etc/nginx/frx-acme.conf', false);
+
+		$domain = WebserverBase::getVhostsToCreate()[self::DOMAIN];
+
+		$nginx = $this->getMockBuilder(Nginx::class)
+			->onlyMethods(['getLogFiles'])
+			->getMock();
+		$nginx->method('getLogFiles')->willReturn('');
+		$method = new ReflectionMethod(Nginx::class, 'getVhostContent');
+		// setAccessible() is needed before PHP 8.1 and deprecated as of PHP 8.5
+		if (PHP_VERSION_ID < 80100) {
+			$method->setAccessible(true);
+		}
+		$content = $method->invoke($nginx, $domain, false);
+
+		$this->assertStringContainsString('include /etc/nginx/frx-acme.conf;', $content);
+		$this->assertStringNotContainsString('/etc/apache2/conf-enabled/frx-acme.conf', $content);
 	}
 }

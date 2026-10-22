@@ -94,9 +94,16 @@ final class ValidateAcmeWebroot extends CliCommand
 					$former_value = $acmesh_challenge_dir;
 					$acmesh_challenge_dir = $recommended;
 					// need to update the corresponding acme-alias config-file
-					$acme_alias_file = Settings::Get('system.letsencryptacmeconf');
 					$sed_params = "s@" . $former_value . "@" . $acmesh_challenge_dir . "@";
-					FileDir::safe_exec('sed -i -e "' . $sed_params . '" ' . escapeshellarg($acme_alias_file));
+					$acme_alias_files = array_unique([
+						Settings::Get('system.letsencryptacmeconf'),
+						Settings::Get('system.letsencryptacmeconf_nginx')
+					]);
+					foreach ($acme_alias_files as $acme_alias_file) {
+						if (!empty($acme_alias_file) && file_exists($acme_alias_file)) {
+							FileDir::safe_exec('sed -i -e "' . $sed_params . '" ' . escapeshellarg($acme_alias_file));
+						}
+					}
 					$count_changes++;
 				}
 			}

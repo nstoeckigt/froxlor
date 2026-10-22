@@ -248,7 +248,7 @@ class Nginx extends HttpConfigBase
 				$this->nginx_data[$vhost_filename] .= "\t" . 'access_log     /var/log/nginx/access.log ' . $logtype . ';' . "\n";
 
 				if (Settings::Get('system.use_ssl') == '1' && Settings::Get('system.leenabled') == '1' && Settings::Get('system.le_froxlor_enabled') == '1') {
-					$acmeConfFilename = Settings::Get('system.letsencryptacmeconf');
+					$acmeConfFilename = Settings::Get('system.letsencryptacmeconf_nginx');
 					$this->nginx_data[$vhost_filename] .= "\t" . 'include ' . $acmeConfFilename . ';' . "\n";
 				}
 
@@ -665,7 +665,7 @@ class Nginx extends HttpConfigBase
 		}
 
 		if (Settings::Get('system.use_ssl') == '1' && Settings::Get('system.leenabled') == '1') {
-			$acmeConfFilename = Settings::Get('system.letsencryptacmeconf');
+			$acmeConfFilename = Settings::Get('system.letsencryptacmeconf_nginx');
 			$vhost_content .= "\t" . 'include ' . $acmeConfFilename . ';' . "\n";
 		}
 

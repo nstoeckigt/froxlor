@@ -655,6 +655,7 @@ opcache.validate_timestamps'),
 	('system', 'le_renew_hook', 'systemctl restart postfix dovecot proftpd'),
 	('system', 'le_renew_services', ''),
 	('system', 'letsencryptacmeconf', '/etc/apache2/conf-enabled/acme.conf'),
+	('system', 'letsencryptacmeconf_nginx', '/etc/nginx/acme.conf'),
 	('system', 'mail_use_smtp', '0'),
 	('system', 'mail_smtp_host', 'localhost'),
 	('system', 'mail_smtp_port', '25'),
@@ -754,7 +755,7 @@ opcache.validate_timestamps'),
 	('panel', 'settings_mode', '0'),
 	('panel', 'menu_collapsed', '1'),
 	('panel', 'version', '2.3.16'),
-	('panel', 'db_version', '202608210');
+	('panel', 'db_version', '202610220');
 
 
 DROP TABLE IF EXISTS `panel_tasks`;

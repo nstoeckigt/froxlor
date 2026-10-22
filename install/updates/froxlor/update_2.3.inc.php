@@ -304,3 +304,18 @@ if (Froxlor::isFroxlorVersion('2.3.16')) {
 	Update::lastStepStatus(0);
 	Froxlor::updateToVersion('2.3.16-dev');
 }
+
+/*
+ * fork-specific: nginx gets its own acme.conf snippet, because with service
+ * separation apache and nginx run side by side and need different files
+ */
+if (Froxlor::isDatabaseVersion('202608210')) {
+	Update::showUpdateStep("Adding nginx acme.conf setting");
+	$nginx_acme_conf = '/etc/nginx/acme.conf';
+	if (Settings::Get('system.webserver') == 'nginx' && Settings::Get('system.letsencryptacmeconf') != '') {
+		$nginx_acme_conf = Settings::Get('system.letsencryptacmeconf');
+	}
+	Settings::AddNew("system.letsencryptacmeconf_nginx", $nginx_acme_conf);
+	Update::lastStepStatus(0);
+	Froxlor::updateToDbVersion('202610220');
+}

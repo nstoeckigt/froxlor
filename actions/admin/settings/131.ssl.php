@@ -25,6 +25,7 @@
 
 use Froxlor\Froxlor;
 use Froxlor\Settings;
+use Froxlor\System\ServicePorts;
 
 return [
 	'groups' => [
@@ -168,6 +169,17 @@ return [
 					'string_type' => 'file',
 					'default' => '/etc/apache2/conf-enabled/acme.conf',
 					'save_method' => 'storeSettingField',
+					'requires_reconf' => ['http']
+				],
+				'system_letsencryptacmeconf_nginx' => [
+					'label' => lng('serversettings.letsencryptacmeconf_nginx'),
+					'settinggroup' => 'system',
+					'varname' => 'letsencryptacmeconf_nginx',
+					'type' => 'text',
+					'string_type' => 'file',
+					'default' => '/etc/nginx/acme.conf',
+					'save_method' => 'storeSettingField',
+					'visible' => Settings::Get('system.webserver') == 'nginx' || ServicePorts::isEnabled(),
 					'requires_reconf' => ['http']
 				],
 				'system_letsencryptca' => [

@@ -9,7 +9,7 @@
 			<default for="nginx" settinggroup="system" varname="apacheconf_diroptions" value="/etc/nginx/sites-enabled/"></default>
 			<default for="nginx" settinggroup="system" varname="apacheconf_htpasswddir" value="/etc/nginx/froxlor-htpasswd/"></default>
 			<default for="nginx" settinggroup="system" varname="apachereload_command" value="service nginx reload"></default>
-			<default for="nginx" settinggroup="system" varname="letsencryptacmeconf" value="/etc/nginx/acme.conf"></default>
+			<default for="nginx" settinggroup="system" varname="letsencryptacmeconf_nginx" value="/etc/nginx/acme.conf"></default>
 			<default for="nginx" settinggroup="phpfpm" varname="fastcgi_ipcdir" value="/var/run/php/"></default>
 		</defaults>
 		<services>
@@ -232,7 +232,7 @@ fastcgi_param  HTTP_HOST          $host;
 ]]>
 						</content>
 					</file>
-					<file name="{{settings.system.letsencryptacmeconf}}">
+					<file name="{{settings.system.letsencryptacmeconf_nginx}}">
 						<visibility mode="true">{{settings.system.leenabled}}
 						</visibility>
 						<content><![CDATA[
