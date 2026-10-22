@@ -314,6 +314,9 @@ if (Froxlor::isDatabaseVersion('202608210')) {
 	$nginx_acme_conf = '/etc/nginx/acme.conf';
 	if (Settings::Get('system.webserver') == 'nginx' && Settings::Get('system.letsencryptacmeconf') != '') {
 		$nginx_acme_conf = Settings::Get('system.letsencryptacmeconf');
+	} elseif (Settings::Get('system.webserver') != 'nginx' && strpos((string) Settings::Get('system.letsencryptacmeconf'), '/nginx/') !== false) {
+		// the shared setting points to the nginx snippet although apache serves the customers
+		Settings::Set('system.letsencryptacmeconf', '/etc/apache2/conf-enabled/acme.conf');
 	}
 	Settings::AddNew("system.letsencryptacmeconf_nginx", $nginx_acme_conf);
 	Update::lastStepStatus(0);
