@@ -2128,7 +2128,7 @@ Port				21
 # In some cases you have to specify passive ports range to by-pass
 # firewall limitations. Ephemeral ports can be used for that, but
 # feel free to use a more narrow range.
-# PassivePorts                  49152 65534
+PassivePorts                  49152 49252
 
 # If your host was NATted, this option is useful in order to
 # allow passive transfers to work. You have to use your public
@@ -2821,6 +2821,65 @@ aliases:     files
 					</commands>
 					<include>//service[@type='smtp']/general/commands[@index=3]
 					</include>
+				</daemon>
+				<!-- nftables -->
+				<daemon name="nftables" title="nftables (host firewall)">
+					<install><![CDATA[apt-get install nftables]]></install>
+					<file name="/etc/nftables.conf" chown="root:root"
+						chmod="0644" backup="true">
+						<content><![CDATA[
+#!/usr/sbin/nft -f
+# Host firewall. Own table only: Docker's iptables-nft tables are left alone
+# (no "flush ruleset"). Forwarding is not touched.
+table inet frx_filter
+delete table inet frx_filter
+
+table inet frx_filter {
+	set public_tcp {
+		type inet_service
+		elements = {
+			21,			# ftp
+			22,			# ssh
+			25, 465, 587,		# smtp, smtps, submission
+			53,			# dns (named)
+			80, 443,		# customer vhosts (apache)
+			110, 995,		# pop3, pop3s
+			143, 993,		# imap, imaps
+			2000, 4190,		# managesieve
+			{{settings.system.panel_http_port}}, {{settings.system.panel_https_port}}	# froxlor panel
+		}
+	}
+
+	chain input {
+		type filter hook input priority filter; policy drop;
+
+		ct state established,related accept
+		ct state invalid drop
+		iif "lo" accept
+
+		# containers talk to the host (dns, published ports)
+		iifname { "docker0", "br-*" } accept
+
+		# hetzner private network (remove this rule if unused)
+		iifname "enp7s0" accept
+
+		# ipv6 needs neighbour discovery; ping is allowed on both
+		meta l4proto ipv6-icmp accept
+		meta l4proto icmp accept
+
+		tcp dport 22 ct state new limit rate over 30/minute burst 15 packets counter drop
+		tcp dport @public_tcp accept
+		udp dport 53 accept
+
+		# ftp passive data ports, see PassivePorts in the proftpd config
+		tcp dport 49152-49252 accept
+	}
+}
+]]>
+						</content>
+					</file>
+					<command><![CDATA[systemctl enable --now nftables]]></command>
+					<command><![CDATA[systemctl reload nftables]]></command>
 				</daemon>
 				<!-- Logrotate -->
 				<daemon name="logrotate" title="Logrotate">
