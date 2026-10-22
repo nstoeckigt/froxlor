@@ -3,6 +3,7 @@ use PHPUnit\Framework\TestCase;
 
 use Froxlor\Api\Commands\Customers;
 use Froxlor\Api\Commands\Domains;
+use Froxlor\Cron\Http\Apache;
 use Froxlor\Cron\Http\Nginx;
 use Froxlor\Cron\Http\WebserverBase;
 use Froxlor\Settings;
@@ -24,7 +25,8 @@ class ServiceSeparationVhostsTest extends TestCase
 		'system.enable_service_ports',
 		'system.panel_webserver',
 		'system.panel_http_port',
-		'system.panel_https_port'
+		'system.panel_https_port',
+		'system.apachereload_command'
 	];
 
 	private $saved = [];
@@ -103,5 +105,28 @@ class ServiceSeparationVhostsTest extends TestCase
 		Settings::Set('system.enable_service_ports', '0', false);
 
 		$this->assertArrayHasKey(self::DOMAIN, WebserverBase::getVhostsToCreate('nginx'));
+	}
+
+	public function testReloadCommandPerWebserver()
+	{
+		$this->separate('apache2', 'nginx');
+		Settings::Set('system.apachereload_command', 'service apache2 reload', false);
+
+		$reload = function (string $class) {
+			$ws = $this->getMockBuilder($class)->disableOriginalConstructor()->onlyMethods([])->getMock();
+			$method = new ReflectionMethod($class, 'getReloadCommand');
+			// setAccessible() is needed before PHP 8.1 and deprecated as of PHP 8.5
+			if (PHP_VERSION_ID < 80100) {
+				$method->setAccessible(true);
+			}
+			return $method->invoke($ws);
+		};
+
+		// customer webserver keeps the configured command, the panel webserver gets its own
+		$this->assertSame('service apache2 reload', $reload(Apache::class));
+		$this->assertSame('service nginx reload', $reload(Nginx::class));
+
+		Settings::Set('system.enable_service_ports', '0', false);
+		$this->assertSame('service apache2 reload', $reload(Nginx::class));
 	}
 }

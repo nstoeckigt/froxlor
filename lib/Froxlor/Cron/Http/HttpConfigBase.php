@@ -35,6 +35,7 @@ use Froxlor\FroxlorLogger;
 use Froxlor\PhpHelper;
 use Froxlor\Settings;
 use Froxlor\System\Cronjob;
+use Froxlor\System\ServicePorts;
 use PDO;
 
 /**
@@ -77,6 +78,22 @@ EOC;
 		}
 	}
 
+	/**
+	 * The command to reload this webserver. With service separation the panel
+	 * webserver differs from the customer webserver, whose reload command is
+	 * system.apachereload_command, so the other one needs its own.
+	 */
+	protected function getReloadCommand(): string
+	{
+		if (ServicePorts::isEnabled()) {
+			$webserver = ($this instanceof Nginx) ? 'nginx' : (($this instanceof Apache) ? 'apache2' : '');
+			if ($webserver !== '' && ServicePorts::getCustomerWebserver() !== $webserver) {
+				return 'service ' . $webserver . ' reload';
+			}
+		}
+		return (string) Settings::Get('system.apachereload_command');
+	}
+
 	public function reload()
 	{
 		$called_class = get_called_class();
@@ -99,7 +116,7 @@ EOC;
 			}
 		}
 		FroxlorLogger::getInstanceOf()->logAction(FroxlorLogger::CRON_ACTION, LOG_INFO, $called_class . '::reload: reloading ' . $called_class);
-		FileDir::safe_exec(escapeshellcmd(Settings::Get('system.apachereload_command')));
+		FileDir::safe_exec(escapeshellcmd($this->getReloadCommand()));
 
 		/**
 		 * nginx does not auto-spawn fcgi-processes
